@@ -40,11 +40,9 @@ header {
 }
 
 .logo-img {
-  height: 60px;
+  height: 80px;
   width: auto;
-  background: white;
   border-radius: 6px;
-  padding: 4px 8px;
 }
 
 header h1 {
