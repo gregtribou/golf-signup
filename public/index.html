@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NCC Weekend Golf</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <img src="ncc-footer-logo.png" alt="Nashua Country Club" class="logo-img" />
+      <div>
+        <h1>Nashua Country Club</h1>
+        <p class="subtitle" id="weekLabel">Loading...</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Signup Card -->
+    <section class="card" id="signupCard">
+      <h2>Count Me In!</h2>
+      <div class="form-group">
+        <label for="nameInput">Your Name</label>
+        <input type="text" id="nameInput" placeholder="Enter Here" autocomplete="name" />
+      </div>
+
+      <!-- Day toggles — populated dynamically -->
+      <div class="day-toggle-group" id="dayToggles"></div>
+
+      <label class="day-toggle either-toggle" id="eitherToggle">
+        <input type="checkbox" id="eitherCheck" />
+        <div class="toggle-box">
+          <span class="day-name">Either Day — Not Both</span>
+          <span class="day-date">Commish assigns the day</span>
+        </div>
+      </label>
+      <label class="day-toggle filler-toggle" id="fillerToggle">
+        <input type="checkbox" id="fillerCheck" />
+        <div class="toggle-box">
+          <span class="day-name">Use My Name as a Placeholder</span>
+          <span class="day-date">Hold a spot on the tee sheet</span>
+        </div>
+      </label>
+
+      <button class="btn-primary" id="submitBtn">Sign Me Up</button>
+      <p class="hint">Already signed up? Enter your name again to update your selections.</p>
+      <p class="feedback" id="feedback"></p>
+    </section>
+
+    <!-- Day Roster Cards — populated dynamically -->
+    <div class="roster-grid" id="dayRosters"></div>
+
+    <!-- Either Day Card -->
+    <section class="card roster-card either-card" id="eitherCard">
+      <div class="roster-header">
+        <span class="roster-icon">↔️</span>
+        <div>
+          <h2>Either Day</h2>
+          <p class="roster-date">Commish assigns the day</p>
+        </div>
+        <span class="count-badge either-badge" id="eitherCount">0</span>
+      </div>
+      <ul class="player-list" id="eitherList">
+        <li class="empty-state">No one yet</li>
+      </ul>
+    </section>
+
+    <!-- Placeholder Card -->
+    <section class="card roster-card filler-card" id="fillerCard">
+      <div class="roster-header">
+        <span class="roster-icon">📋</span>
+        <div>
+          <h2>Placeholders</h2>
+          <p class="roster-date">Name on tee sheet to fill a foursome</p>
+        </div>
+        <span class="count-badge filler-badge" id="fillerCount">0</span>
+      </div>
+      <ul class="player-list" id="fillerList">
+        <li class="empty-state">No one yet</li>
+      </ul>
+    </section>
+
+    <!-- Commish's Tools -->
+    <section class="card commish-card" id="commishCard">
+      <div class="commish-header" id="commishToggle">
+        <span>🔧 Commish's Tools</span>
+        <span class="chevron" id="chevron">▼</span>
+      </div>
+      <div class="commish-body hidden" id="commishBody">
+
+        <!-- Date Setter -->
+        <div class="date-setter">
+          <p class="commish-section-label">PLAY DATES</p>
+          <div id="dateInputList"></div>
+          <div class="date-setter-actions">
+            <button class="btn-add-date" id="addDateBtn">+ Add Day</button>
+            <button class="btn-set-dates" id="setDatesBtn">Update Dates</button>
+          </div>
+          <p class="feedback" id="dateFeedback"></p>
+        </div>
+
+        <div class="commish-divider"></div>
+
+        <!-- Signup Summary -->
+        <p class="commish-section-label">SIGNUP SUMMARY</p>
+        <div class="summary-box" id="summaryBox"></div>
+
+        <button class="btn-reset" id="resetBtn">Reset Signups for New Week</button>
+        <p class="hint">Clears all signups but keeps the play dates.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
