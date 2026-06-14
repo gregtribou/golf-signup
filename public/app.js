@@ -1,4 +1,8 @@
 let currentData = null;
+let activeTab = 'signup';
+let scoresPollInterval = null;
+let selectedScoreDate = null;
+let selectedCommishDate = null;
 
 // --- Date helpers ---
 
@@ -19,21 +23,114 @@ function formatDateMed(iso) {
   return parseDateLocal(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-// --- Load & render ---
+function formatDayToggleLabel(iso) {
+  return parseDateLocal(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+// --- Tab switching ---
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('viewSignup').classList.toggle('hidden', tab !== 'signup');
+  document.getElementById('viewScores').classList.toggle('hidden', tab !== 'scores');
+  document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
+  document.getElementById('tabScores').classList.toggle('active', tab === 'scores');
+
+  if (tab === 'scores') {
+    renderScoreDayToggle(currentData?.playDates || []);
+    loadScores();
+    scoresPollInterval = setInterval(loadScores, 10000);
+  } else {
+    clearInterval(scoresPollInterval);
+    scoresPollInterval = null;
+  }
+}
+
+// --- Day toggle helpers ---
+
+function renderScoreDayToggle(playDates) {
+  const bar = document.getElementById('scoreDayToggle');
+  if (playDates.length <= 1) {
+    bar.classList.add('hidden');
+    if (playDates.length === 1 && selectedScoreDate !== playDates[0]) {
+      selectedScoreDate = playDates[0];
+    }
+    return;
+  }
+  if (!selectedScoreDate || !playDates.includes(selectedScoreDate)) {
+    selectedScoreDate = playDates[0];
+  }
+  bar.classList.remove('hidden');
+  bar.innerHTML = playDates.map(iso => `
+    <button class="day-toggle-btn${iso === selectedScoreDate ? ' active' : ''}"
+            onclick="selectScoreDay('${iso}')">${formatDayToggleLabel(iso)}</button>
+  `).join('');
+}
+
+function renderCommishDayToggle(playDates) {
+  const section = document.getElementById('commishDaySection');
+  const bar = document.getElementById('commishDayToggle');
+  if (playDates.length <= 1) {
+    section.classList.add('hidden');
+    if (playDates.length === 1 && selectedCommishDate !== playDates[0]) {
+      selectedCommishDate = playDates[0];
+    }
+    return;
+  }
+  if (!selectedCommishDate || !playDates.includes(selectedCommishDate)) {
+    selectedCommishDate = playDates[0];
+  }
+  section.classList.remove('hidden');
+  bar.innerHTML = playDates.map(iso => `
+    <button class="day-toggle-btn${iso === selectedCommishDate ? ' active' : ''}"
+            onclick="selectCommishDay('${iso}')">${formatDayToggleLabel(iso)}</button>
+  `).join('');
+}
+
+window.selectScoreDay = function(iso) {
+  selectedScoreDate = iso;
+  renderScoreDayToggle(currentData?.playDates || []);
+  loadScores();
+};
+
+window.selectCommishDay = function(iso) {
+  selectedCommishDate = iso;
+  renderCommishDayToggle(currentData?.playDates || []);
+  loadCommishScores();
+};
+
+function loadCommishScores() {
+  if (!selectedCommishDate) return;
+  fetch(`/api/scores?date=${encodeURIComponent(selectedCommishDate)}`)
+    .then(r => r.json())
+    .then(d => {
+      populateTeamInputs(d.teams || []);
+      populateCtp(d.ctp || { active: false, hole: 13 });
+    });
+}
+
+// --- Load & render signups ---
 
 async function loadSignups() {
   const res = await fetch('/api/signups');
   currentData = await res.json();
+  // Init selected dates from playDates if not set
+  if (currentData.playDates && currentData.playDates.length > 0) {
+    if (!selectedScoreDate || !currentData.playDates.includes(selectedScoreDate)) {
+      selectedScoreDate = currentData.playDates[0];
+    }
+    if (!selectedCommishDate || !currentData.playDates.includes(selectedCommishDate)) {
+      selectedCommishDate = currentData.playDates[0];
+    }
+  }
   render(currentData);
 }
 
 function render(data) {
   const { playDates, signups } = data;
 
-  // Header subtitle
   document.getElementById('weekLabel').textContent = playDates.map(formatDateMed).join('  ·  ');
 
-  // Show/hide "Either Day" option — only relevant when 2+ days
   const multiDay = playDates.length >= 2;
   document.getElementById('eitherToggle').style.display = multiDay ? 'block' : 'none';
   document.getElementById('eitherCard').style.display  = multiDay ? 'block' : 'none';
@@ -47,8 +144,6 @@ function render(data) {
   renderList('fillerList', fillerPlayers);
   document.getElementById('eitherCount').textContent = eitherPlayers.length;
   document.getElementById('fillerCount').textContent = fillerPlayers.length;
-
-  renderSummary(data);
 }
 
 function renderDayToggles(playDates) {
@@ -103,34 +198,8 @@ function renderList(listId, players) {
     </li>`).join('');
 }
 
-function renderSummary(data) {
-  const { playDates, signups } = data;
-  let text = '';
-  for (const iso of playDates) {
-    const players = signups.filter(s => s.days && s.days[iso]);
-    text += `${formatDayName(iso).toUpperCase()} ${formatDateShort(iso)} — ${players.length} player${players.length !== 1 ? 's' : ''}\n`;
-    text += players.length ? players.map(p => `  • ${p.name}`).join('\n') : '  (none)';
-    text += '\n\n';
-  }
-  const both = playDates.length >= 2
-    ? signups.filter(s => playDates.every(iso => s.days && s.days[iso]))
-    : [];
-  if (both.length) {
-    text += `Playing all days:\n${both.map(p => `  • ${p.name}`).join('\n')}\n\n`;
-  }
-  const either = signups.filter(s => s.either);
-  if (either.length) {
-    text += `Either day (commish assigns):\n${either.map(p => `  • ${p.name}`).join('\n')}\n\n`;
-  }
-  const fillers = signups.filter(s => s.filler);
-  if (fillers.length) {
-    text += `Placeholders:\n${fillers.map(p => `  • ${p.name}`).join('\n')}`;
-  }
-  document.getElementById('summaryBox').textContent = text.trim();
-}
-
 function escHtml(str) {
-  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 // --- Signup submit ---
@@ -201,14 +270,19 @@ document.getElementById('commishToggle').addEventListener('click', () => {
   const opening = body.classList.contains('hidden');
   body.classList.toggle('hidden');
   chevron.classList.toggle('open');
-  if (opening) populateDateInputs(currentData?.playDates || []);
+  if (opening) {
+    const playDates = currentData?.playDates || [];
+    populateDateInputs(playDates);
+    renderCommishDayToggle(playDates);
+    loadCommishScores();
+  }
 });
 
 // --- Date management ---
 
 function populateDateInputs(playDates) {
   const container = document.getElementById('dateInputList');
-  container.innerHTML = playDates.map((iso, i) => makeDateRow(iso, playDates.length)).join('');
+  container.innerHTML = playDates.map(iso => makeDateRow(iso)).join('');
   updateRemoveButtons();
 }
 
@@ -257,17 +331,231 @@ document.getElementById('setDatesBtn').addEventListener('click', async () => {
     showFeedback('✓ Dates updated!', 'success', 'dateFeedback');
     await loadSignups();
     populateDateInputs(currentData.playDates);
+    selectedCommishDate = currentData.playDates[0];
+    renderCommishDayToggle(currentData.playDates);
+    loadCommishScores();
   } else {
     showFeedback(result.error || 'Something went wrong.', 'error', 'dateFeedback');
   }
 });
 
-// --- Reset ---
+// --- Teams management (Commish) ---
+
+function makeTeamRow(id = '', name = '', players = '') {
+  return `
+    <div class="team-input-row" data-id="${escHtml(id)}" data-name="${escHtml(name)}">
+      <div class="team-input-fields">
+        <input type="text" class="team-players-input date-input" placeholder="Players (e.g. Greg, Bob, Mike, John)" value="${escHtml(players)}" />
+      </div>
+      <button class="btn-remove-date" onclick="removeTeamRow(this)" title="Remove">✕</button>
+    </div>`;
+}
+
+function populateTeamInputs(teams) {
+  const container = document.getElementById('teamInputList');
+  container.innerHTML = teams.length
+    ? teams.map(t => makeTeamRow(t.id, t.name, t.players)).join('')
+    : makeTeamRow();
+}
+
+window.removeTeamRow = function(btn) {
+  const rows = document.querySelectorAll('.team-input-row');
+  if (rows.length <= 1) {
+    btn.closest('.team-input-row').querySelector('.team-players-input').value = '';
+    return;
+  }
+  btn.closest('.team-input-row').remove();
+};
+
+document.getElementById('addTeamBtn').addEventListener('click', () => {
+  document.getElementById('teamInputList').insertAdjacentHTML('beforeend', makeTeamRow());
+});
+
+document.getElementById('saveTeamsBtn').addEventListener('click', async () => {
+  if (!selectedCommishDate) { showFeedback('No date selected.', 'error', 'teamsFeedback'); return; }
+  const rows = document.querySelectorAll('.team-input-row');
+  const teams = [];
+  rows.forEach((row, i) => {
+    const players = row.querySelector('.team-players-input').value.trim();
+    const id = row.dataset.id || `team-${i + 1}`;
+    const name = row.dataset.name || `Team ${i + 1}`;
+    if (players) teams.push({ id, name, players });
+  });
+  if (!teams.length) { showFeedback('Enter at least one team.', 'error', 'teamsFeedback'); return; }
+  const res = await fetch('/api/scores/teams', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teams, date: selectedCommishDate })
+  });
+  const result = await res.json();
+  if (result.success) {
+    showFeedback('✓ Teams saved!', 'success', 'teamsFeedback');
+    if (activeTab === 'scores') loadScores();
+  } else {
+    showFeedback(result.error || 'Something went wrong.', 'error', 'teamsFeedback');
+  }
+});
+
+function populateCtp(ctp) {
+  document.getElementById('ctpActiveCheck').checked = ctp.active;
+  document.getElementById('ctpHoleInput').value = ctp.hole || 13;
+}
+
+document.getElementById('saveCtpBtn').addEventListener('click', async () => {
+  if (!selectedCommishDate) { showFeedback('No date selected.', 'error', 'ctpFeedback'); return; }
+  const active = document.getElementById('ctpActiveCheck').checked;
+  const hole = parseInt(document.getElementById('ctpHoleInput').value) || 13;
+  const res = await fetch('/api/ctp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ active, hole, date: selectedCommishDate })
+  });
+  const result = await res.json();
+  if (result.success) {
+    showFeedback('✓ CTP updated!', 'success', 'ctpFeedback');
+    if (activeTab === 'scores') loadScores();
+  } else {
+    showFeedback('Something went wrong.', 'error', 'ctpFeedback');
+  }
+});
+
+document.getElementById('ctpLeaderSaveBtn').addEventListener('click', async () => {
+  if (!selectedScoreDate) return;
+  const name = document.getElementById('ctpNameInput').value.trim();
+  const feet = parseInt(document.getElementById('ctpFeetInput').value) || 0;
+  const inches = parseInt(document.getElementById('ctpInchInput').value) || 0;
+  const distance = feet + inches / 12;
+  if (!name || distance <= 0) return;
+  await fetch('/api/ctp/entry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, distance, date: selectedScoreDate })
+  });
+  document.getElementById('ctpNameInput').value = '';
+  document.getElementById('ctpFeetInput').value = '';
+  document.getElementById('ctpInchInput').value = '';
+  loadScores();
+});
+
+async function removeCtp(name) {
+  if (!selectedScoreDate) return;
+  await fetch('/api/ctp/entry/remove', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, date: selectedScoreDate })
+  });
+  loadScores();
+}
+
+document.getElementById('resetScoresBtn').addEventListener('click', async () => {
+  if (!selectedCommishDate) return;
+  if (!confirm('Reset all scores to E and hole 1? Teams will be kept.')) return;
+  await fetch('/api/scores/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: selectedCommishDate })
+  });
+  showFeedback('✓ Scores reset!', 'success', 'teamsFeedback');
+  if (activeTab === 'scores') loadScores();
+});
+
+// --- Reset signups ---
 
 document.getElementById('resetBtn').addEventListener('click', async () => {
   if (!confirm('Clear all signups for a new week? Play dates will be kept.')) return;
   await fetch('/api/reset', { method: 'POST' });
   await loadSignups();
 });
+
+// --- Scores tab ---
+
+async function loadScores() {
+  if (!selectedScoreDate) return;
+  const res = await fetch(`/api/scores?date=${encodeURIComponent(selectedScoreDate)}`);
+  const data = await res.json();
+  renderTeams(data.teams || []);
+  renderCtp(data.ctp || { active: false, hole: 13, entries: [] });
+}
+
+function formatFtIn(decimalFeet) {
+  const ft = Math.floor(decimalFeet);
+  const inches = Math.round((decimalFeet - ft) * 12);
+  return inches === 0 ? `${ft}'` : `${ft}' ${inches}"`;
+}
+
+function renderCtp(ctp) {
+  const card = document.getElementById('ctpCard');
+  if (!ctp.active) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  document.getElementById('ctpTitle').textContent = `Closest to the Pin — Hole ${ctp.hole}`;
+
+  const entries = (ctp.entries || []).slice().sort((a, b) => a.distance - b.distance);
+  const lb = document.getElementById('ctpLeaderboard');
+  if (!entries.length) {
+    lb.classList.add('hidden');
+    return;
+  }
+  lb.classList.remove('hidden');
+  lb.innerHTML = entries.map((e, i) => `
+    <li class="ctp-entry ${i === 0 ? 'ctp-leader' : ''}">
+      <span class="ctp-rank">${i === 0 ? '🏆' : `${i + 1}.`}</span>
+      <span class="ctp-name">${escHtml(e.name)}</span>
+      <span class="ctp-dist">${formatFtIn(e.distance)}</span>
+      <button class="remove-btn" onclick="removeCtp('${escHtml(e.name)}')">✕</button>
+    </li>`).join('');
+}
+
+function formatScore(score) {
+  if (score === 0) return 'E';
+  return score > 0 ? `+${score}` : `${score}`;
+}
+
+function renderTeams(teams) {
+  const container = document.getElementById('teamCards');
+  const hint = document.getElementById('scoresHint');
+
+  if (!teams.length) {
+    container.innerHTML = '';
+    hint.classList.remove('hidden');
+    return;
+  }
+  hint.classList.add('hidden');
+
+  container.innerHTML = teams.map(t => {
+    const scoreClass = t.score < 0 ? 'under' : t.score > 0 ? 'over' : 'even';
+    const holeLabel = t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
+    return `
+      <div class="team-card card">
+        <div class="team-header">
+          <div class="team-info">
+            <h2 class="team-name">${escHtml(t.players)}</h2>
+          </div>
+          <span class="team-thru">${holeLabel}</span>
+        </div>
+        <div class="score-controls">
+          <button class="score-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, -1, 0)">−</button>
+          <span class="score-display ${scoreClass}">${formatScore(t.score)}</span>
+          <button class="score-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, +1, 0)">+</button>
+          <div class="hole-controls">
+            <button class="hole-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, 0, -1)">◀</button>
+            <span class="hole-display">Hole ${t.hole}</span>
+            <button class="hole-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, 0, +1)">▶</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function adjustScore(id, currentScore, currentHole, scoreDelta, holeDelta) {
+  if (!selectedScoreDate) return;
+  const newScore = currentScore + scoreDelta;
+  const newHole = Math.max(1, Math.min(18, currentHole + holeDelta));
+  await fetch('/api/scores/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, score: newScore, hole: newHole, date: selectedScoreDate })
+  });
+  loadScores();
+}
 
 loadSignups();

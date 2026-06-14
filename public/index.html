@@ -19,96 +19,164 @@
     </div>
   </header>
 
+  <nav class="tab-bar">
+    <button class="tab-btn active" id="tabSignup" onclick="switchTab('signup')">✏️ Sign Up</button>
+    <button class="tab-btn" id="tabScores" onclick="switchTab('scores')">⛳ Scores</button>
+  </nav>
+
   <main>
-    <!-- Signup Card -->
-    <section class="card" id="signupCard">
-      <h2>Count Me In!</h2>
-      <div class="form-group">
-        <label for="nameInput">Your Name</label>
-        <input type="text" id="nameInput" placeholder="Enter Here" autocomplete="name" />
-      </div>
 
-      <!-- Day toggles — populated dynamically -->
-      <div class="day-toggle-group" id="dayToggles"></div>
+    <!-- ── Sign Up view ── -->
+    <div id="viewSignup">
 
-      <label class="day-toggle either-toggle" id="eitherToggle">
-        <input type="checkbox" id="eitherCheck" />
-        <div class="toggle-box">
-          <span class="day-name">Either Day — Not Both</span>
-          <span class="day-date">Commish assigns the day</span>
+      <section class="card" id="signupCard">
+        <h2>Count Me In!</h2>
+        <div class="form-group">
+          <label for="nameInput">Your Name</label>
+          <input type="text" id="nameInput" placeholder="Enter Here" autocomplete="name" />
         </div>
-      </label>
-      <label class="day-toggle filler-toggle" id="fillerToggle">
-        <input type="checkbox" id="fillerCheck" />
-        <div class="toggle-box">
-          <span class="day-name">I'm Out - Use My Name as a Placeholder</span>
-          <span class="day-date">Hold a spot on the tee sheet</span>
-        </div>
-      </label>
 
-      <button class="btn-primary" id="submitBtn">Sign Me Up</button>
-      <p class="hint">Already signed up? Enter your name again to update your selections.</p>
-      <p class="feedback" id="feedback"></p>
-    </section>
+        <div class="day-toggle-group" id="dayToggles"></div>
 
-    <!-- Day Roster Cards — populated dynamically -->
-    <div class="roster-grid" id="dayRosters"></div>
-
-    <!-- Either Day Card -->
-    <section class="card roster-card either-card" id="eitherCard">
-      <div class="roster-header">
-        <span class="roster-icon">↔️</span>
-        <div>
-          <h2>Either Day</h2>
-          <p class="roster-date">Commish assigns the day</p>
-        </div>
-        <span class="count-badge either-badge" id="eitherCount">0</span>
-      </div>
-      <ul class="player-list" id="eitherList">
-        <li class="empty-state">No one yet</li>
-      </ul>
-    </section>
-
-    <!-- Placeholder Card -->
-    <section class="card roster-card filler-card" id="fillerCard">
-      <div class="roster-header">
-        <span class="roster-icon">📋</span>
-        <div>
-          <h2>Placeholders</h2>
-          <p class="roster-date">Name on tee sheet to fill a foursome</p>
-        </div>
-        <span class="count-badge filler-badge" id="fillerCount">0</span>
-      </div>
-      <ul class="player-list" id="fillerList">
-        <li class="empty-state">No one yet</li>
-      </ul>
-    </section>
-
-    <!-- Commish's Tools -->
-    <section class="card commish-card" id="commishCard">
-      <div class="commish-header" id="commishToggle">
-        <span>🔧 Commish's Tools</span>
-        <span class="chevron" id="chevron">▼</span>
-      </div>
-      <div class="commish-body hidden" id="commishBody">
-
-        <!-- Date Setter -->
-        <div class="date-setter">
-          <p class="commish-section-label">PLAY DATES</p>
-          <div id="dateInputList"></div>
-          <div class="date-setter-actions">
-            <button class="btn-add-date" id="addDateBtn">+ Add Day</button>
-            <button class="btn-set-dates" id="setDatesBtn">Update Dates</button>
+        <label class="day-toggle either-toggle" id="eitherToggle">
+          <input type="checkbox" id="eitherCheck" />
+          <div class="toggle-box">
+            <span class="day-name">Either Day — Not Both</span>
+            <span class="day-date">Commish assigns the day</span>
           </div>
-          <p class="feedback" id="dateFeedback"></p>
+        </label>
+        <label class="day-toggle filler-toggle" id="fillerToggle">
+          <input type="checkbox" id="fillerCheck" />
+          <div class="toggle-box">
+            <span class="day-name">I'm Out - Use My Name as a Placeholder</span>
+            <span class="day-date">Hold a spot on the tee sheet</span>
+          </div>
+        </label>
+
+        <button class="btn-primary" id="submitBtn">Sign Me Up</button>
+        <p class="hint">Already signed up? Enter your name again to update your selections.</p>
+        <p class="feedback" id="feedback"></p>
+      </section>
+
+      <div class="roster-grid" id="dayRosters"></div>
+
+      <section class="card roster-card either-card" id="eitherCard">
+        <div class="roster-header">
+          <span class="roster-icon">↔️</span>
+          <div>
+            <h2>Either Day</h2>
+            <p class="roster-date">Commish assigns the day</p>
+          </div>
+          <span class="count-badge either-badge" id="eitherCount">0</span>
         </div>
+        <ul class="player-list" id="eitherList">
+          <li class="empty-state">No one yet</li>
+        </ul>
+      </section>
 
-        <div class="commish-divider"></div>
+      <section class="card roster-card filler-card" id="fillerCard">
+        <div class="roster-header">
+          <span class="roster-icon">📋</span>
+          <div>
+            <h2>Placeholders</h2>
+            <p class="roster-date">Name on tee sheet to fill a foursome</p>
+          </div>
+          <span class="count-badge filler-badge" id="fillerCount">0</span>
+        </div>
+        <ul class="player-list" id="fillerList">
+          <li class="empty-state">No one yet</li>
+        </ul>
+      </section>
 
-        <button class="btn-reset" id="resetBtn">Reset Signups for New Week</button>
-        <p class="hint">Clears all signups but keeps the play dates.</p>
+      <!-- Commish's Tools -->
+      <section class="card commish-card" id="commishCard">
+        <div class="commish-header" id="commishToggle">
+          <span>🔧 Commish's Tools</span>
+          <span class="chevron" id="chevron">▼</span>
+        </div>
+        <div class="commish-body hidden" id="commishBody">
+
+          <div class="date-setter">
+
+            <p class="commish-section-label">PLAY DATES</p>
+            <div id="dateInputList"></div>
+            <div class="date-setter-actions">
+              <button class="btn-add-date" id="addDateBtn">+ Add Day</button>
+              <button class="btn-set-dates" id="setDatesBtn">Update Dates</button>
+            </div>
+            <p class="feedback" id="dateFeedback"></p>
+          </div>
+
+          <div class="commish-divider"></div>
+
+          <div class="commish-day-selector hidden" id="commishDaySection">
+            <p class="commish-section-label">GAME DAY</p>
+            <div class="day-toggle-bar" id="commishDayToggle"></div>
+          </div>
+
+          <div class="teams-setter">
+            <p class="commish-section-label">TEAMS</p>
+            <div id="teamInputList"></div>
+            <div class="teams-setter-actions">
+              <button class="btn-add-date" id="addTeamBtn">+ Add Team</button>
+              <button class="btn-set-dates" id="saveTeamsBtn">Save Teams</button>
+            </div>
+            <p class="feedback" id="teamsFeedback"></p>
+          </div>
+
+          <div class="commish-divider"></div>
+
+          <div class="ctp-setter">
+            <p class="commish-section-label">CLOSEST TO THE PIN</p>
+            <label class="ctp-toggle-row">
+              <input type="checkbox" id="ctpActiveCheck" />
+              <span>In play this weekend (Hole <input type="number" id="ctpHoleInput" value="13" min="1" max="18" class="ctp-hole-input" />)</span>
+            </label>
+            <button class="btn-set-dates" id="saveCtpBtn" style="margin-top:10px;">Save</button>
+            <p class="feedback" id="ctpFeedback"></p>
+          </div>
+
+          <div class="commish-divider"></div>
+
+          <button class="btn-reset-scores" id="resetScoresBtn">Reset Scores</button>
+          <p class="hint">Keeps teams, resets all scores to E / Hole 1.</p>
+
+          <div class="commish-divider"></div>
+
+          <button class="btn-reset" id="resetBtn">Reset Signups for New Week</button>
+          <p class="hint">Clears all signups but keeps the play dates.</p>
+        </div>
+      </section>
+
+    </div><!-- /viewSignup -->
+
+    <!-- ── Scores view ── -->
+    <div id="viewScores" class="hidden">
+      <div class="day-toggle-bar hidden" id="scoreDayToggle"></div>
+      <div id="teamCards"></div>
+      <p class="scores-hint hidden" id="scoresHint">Commish hasn't set up teams yet.<br>Check back once teams are posted.</p>
+      <div class="card ctp-card hidden" id="ctpCard">
+        <div class="ctp-header">
+          <span class="ctp-icon">📍</span>
+          <div>
+            <h2 id="ctpTitle">Closest to the Pin — Hole 13</h2>
+            <p class="roster-date">Shortest distance wins</p>
+          </div>
+        </div>
+        <div class="ctp-entry-form">
+          <input type="text" id="ctpNameInput" class="ctp-leader-input" placeholder="Player name" autocomplete="off" />
+          <div class="ctp-input-row">
+            <input type="number" id="ctpFeetInput" class="ctp-dist-input" placeholder="ft" min="0" step="1" />
+            <span class="ctp-unit">'</span>
+            <input type="number" id="ctpInchInput" class="ctp-dist-input" placeholder="in" min="0" max="11" step="1" />
+            <span class="ctp-unit">"</span>
+            <button class="btn-ctp-save" id="ctpLeaderSaveBtn">Add</button>
+          </div>
+        </div>
+        <ul class="ctp-leaderboard hidden" id="ctpLeaderboard"></ul>
       </div>
-    </section>
+    </div>
+
   </main>
 
   <script src="app.js"></script>

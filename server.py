@@ -3,7 +3,7 @@ import json
 import os
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from datetime import date, timedelta
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse, parse_qs
 
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
 DATA_FILE  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'signups.json')
@@ -33,6 +33,14 @@ if DATABASE_URL:
                     CREATE TABLE IF NOT EXISTS settings (
                         key TEXT PRIMARY KEY,
                         value JSONB NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS teams (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        players TEXT NOT NULL DEFAULT '',
+                        score INTEGER NOT NULL DEFAULT 0,
+                        hole INTEGER NOT NULL DEFAULT 1,
+                        sort_order INTEGER NOT NULL DEFAULT 0
                     );
                 """)
     _init_db()
@@ -82,15 +90,80 @@ if DATABASE_URL:
         _set_play_dates(dates)
         reset_signups()
 
+    def _team_prefix(d):
+        return f"{d}_"
+
+    def load_teams(play_date):
+        prefix = _team_prefix(play_date)
+        with _conn() as c:
+            with c.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    SELECT id, name, players, score, hole FROM teams
+                    WHERE id LIKE %s ORDER BY sort_order, id
+                """, (f"{play_date}_%",))
+                rows = []
+                for r in cur.fetchall():
+                    d = dict(r)
+                    d['id'] = d['id'][len(prefix):]
+                    rows.append(d)
+                return rows
+
+    def save_teams(teams, play_date):
+        prefix = _team_prefix(play_date)
+        existing = {}
+        with _conn() as c:
+            with c.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT name, score, hole FROM teams WHERE id LIKE %s", (f"{play_date}_%",))
+                for r in cur.fetchall():
+                    existing[r['name']] = dict(r)
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("DELETE FROM teams WHERE id LIKE %s", (f"{play_date}_%",))
+                for i, t in enumerate(teams):
+                    old = existing.get(t['name'], {})
+                    cur.execute("""
+                        INSERT INTO teams (id, name, players, score, hole, sort_order)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (f"{prefix}{t['id']}", t['name'], t['players'],
+                          old.get('score', 0), old.get('hole', 1), i))
+
+    def update_team_score(team_id, score, hole, play_date):
+        full_id = f"{_team_prefix(play_date)}{team_id}"
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("UPDATE teams SET score=%s, hole=%s WHERE id=%s", (score, hole, full_id))
+
+    def reset_team_scores(play_date):
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("UPDATE teams SET score=0, hole=1 WHERE id LIKE %s", (f"{play_date}_%",))
+
+    def _ctp_key(play_date):
+        return f"ctp_{play_date}"
+
+    def load_ctp(play_date):
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("SELECT value FROM settings WHERE key = %s", (_ctp_key(play_date),))
+                row = cur.fetchone()
+                return row[0] if row else {'active': False, 'hole': 13, 'entries': []}
+
+    def save_ctp(ctp, play_date):
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO settings (key, value) VALUES (%s, %s)
+                    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+                """, (_ctp_key(play_date), json.dumps(ctp)))
+
 else:
     # ---- local JSON file storage ----
 
     def load_data():
         if not os.path.exists(DATA_FILE):
-            data = {'playDates': _default_dates(), 'signups': []}
+            data = {'playDates': _default_dates(), 'signups': [], 'scores': {}}
             _save(data); return data
         data = json.loads(open(DATA_FILE).read())
-        # migrate old saturday/sunday format
         if 'week' in data or (data.get('signups') and 'saturday' in data['signups'][0]):
             old = data.pop('week', {})
             old_dates = [d for d in [old.get('saturdayFull'), old.get('sundayFull')] if d] or _default_dates()
@@ -103,7 +176,24 @@ else:
                     s['days'] = days
                     s.pop('saturday', None); s.pop('sunday', None)
             _save(data)
+        # migrate old flat teams/ctp to per-date scores
+        if 'teams' in data or 'ctp' in data:
+            first = data.get('playDates', _default_dates())[0]
+            data.setdefault('scores', {})
+            data['scores'].setdefault(first, {})
+            if 'teams' in data:
+                data['scores'][first]['teams'] = data.pop('teams')
+            if 'ctp' in data:
+                data['scores'][first]['ctp'] = data.pop('ctp')
+            _save(data)
+        data.setdefault('scores', {})
         return data
+
+    def _day_scores(data, play_date):
+        data['scores'].setdefault(play_date, {'teams': [], 'ctp': {'active': False, 'hole': 13, 'entries': []}})
+        data['scores'][play_date].setdefault('teams', [])
+        data['scores'][play_date].setdefault('ctp', {'active': False, 'hole': 13, 'entries': []})
+        return data['scores'][play_date]
 
     def save_signup(name, days, either, filler):
         data = load_data()
@@ -128,6 +218,41 @@ else:
         data = load_data()
         data['playDates'] = dates
         data['signups'] = []
+        _save(data)
+
+    def load_teams(play_date):
+        return _day_scores(load_data(), play_date)['teams']
+
+    def save_teams(teams, play_date):
+        data = load_data()
+        day = _day_scores(data, play_date)
+        existing = {t['name']: t for t in day['teams']}
+        day['teams'] = [{
+            'id': t['id'], 'name': t['name'], 'players': t['players'],
+            'score': existing.get(t['name'], {}).get('score', 0),
+            'hole':  existing.get(t['name'], {}).get('hole', 1),
+        } for t in teams]
+        _save(data)
+
+    def update_team_score(team_id, score, hole, play_date):
+        data = load_data()
+        for t in _day_scores(data, play_date)['teams']:
+            if t['id'] == team_id:
+                t['score'] = score; t['hole'] = hole; break
+        _save(data)
+
+    def reset_team_scores(play_date):
+        data = load_data()
+        for t in _day_scores(data, play_date)['teams']:
+            t['score'] = 0; t['hole'] = 1
+        _save(data)
+
+    def load_ctp(play_date):
+        return _day_scores(load_data(), play_date)['ctp']
+
+    def save_ctp(ctp, play_date):
+        data = load_data()
+        _day_scores(data, play_date)['ctp'] = ctp
         _save(data)
 
     def _save(data):
@@ -157,8 +282,17 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args): pass
 
     def do_GET(self):
-        if self.path == '/api/signups':
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+        path = parsed.path
+
+        if path == '/api/signups':
             self.json_response(load_data())
+        elif path == '/api/scores':
+            play_date = params.get('date', [''])[0].strip()
+            if not play_date:
+                return self.json_response({'error': 'date param required'}, 400)
+            self.json_response({'teams': load_teams(play_date), 'ctp': load_ctp(play_date)})
         else:
             super().do_GET()
 
@@ -186,6 +320,85 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path == '/api/reset':
             reset_signups()
             self.json_response({'success': True})
+
+        elif self.path == '/api/scores/teams':
+            play_date = (body.get('date') or '').strip()
+            if not play_date:
+                return self.json_response({'error': 'date required'}, 400)
+            raw = body.get('teams', [])
+            teams = []
+            for t in raw:
+                name = (t.get('name') or '').strip()
+                players = (t.get('players') or '').strip()
+                if name:
+                    tid = (t.get('id') or name).lower().replace(' ', '-')
+                    teams.append({'id': tid, 'name': name, 'players': players})
+            save_teams(teams, play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/scores/update':
+            play_date = (body.get('date') or '').strip()
+            team_id = (body.get('id') or '').strip()
+            score = int(body.get('score', 0))
+            hole  = max(1, min(18, int(body.get('hole', 1))))
+            if not team_id or not play_date:
+                return self.json_response({'error': 'id and date required.'}, 400)
+            update_team_score(team_id, score, hole, play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/scores/reset':
+            play_date = (body.get('date') or '').strip()
+            if not play_date:
+                return self.json_response({'error': 'date required'}, 400)
+            reset_team_scores(play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/ctp':
+            play_date = (body.get('date') or '').strip()
+            if not play_date:
+                return self.json_response({'error': 'date required'}, 400)
+            ctp = load_ctp(play_date)
+            if 'active' in body: ctp['active'] = bool(body['active'])
+            if 'hole'   in body: ctp['hole']   = int(body['hole'])
+            ctp.setdefault('entries', [])
+            save_ctp(ctp, play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/ctp/entry':
+            play_date = (body.get('date') or '').strip()
+            name = (body.get('name') or '').strip()
+            try:
+                distance = float(body.get('distance', 0))
+            except (ValueError, TypeError):
+                return self.json_response({'error': 'Invalid distance.'}, 400)
+            if not name or distance <= 0 or not play_date:
+                return self.json_response({'error': 'Name, distance, and date required.'}, 400)
+            ctp = load_ctp(play_date)
+            ctp.setdefault('entries', [])
+            ctp['entries'] = [e for e in ctp['entries'] if e['name'].lower() != name.lower()]
+            ctp['entries'].append({'name': name, 'distance': distance})
+            save_ctp(ctp, play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/ctp/entry/remove':
+            play_date = (body.get('date') or '').strip()
+            name = (body.get('name') or '').strip()
+            if not name or not play_date:
+                return self.json_response({'error': 'name and date required'}, 400)
+            ctp = load_ctp(play_date)
+            ctp['entries'] = [e for e in ctp.get('entries', []) if e['name'].lower() != name.lower()]
+            save_ctp(ctp, play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/ctp/reset':
+            play_date = (body.get('date') or '').strip()
+            if not play_date:
+                return self.json_response({'error': 'date required'}, 400)
+            ctp = load_ctp(play_date)
+            ctp['entries'] = []
+            save_ctp(ctp, play_date)
+            self.json_response({'success': True})
+
         else:
             self.send_error(404)
 
