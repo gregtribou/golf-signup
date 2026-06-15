@@ -266,7 +266,7 @@ else:
 
 def _default_dates():
     today = date.today()
-    diff = (5 - today.weekday()) % 7 or 7
+    diff = (5 - today.weekday()) % 7
     sat = today + timedelta(days=diff)
     return [sat.isoformat(), (sat + timedelta(days=1)).isoformat()]
 
@@ -339,8 +339,11 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path == '/api/scores/update':
             play_date = (body.get('date') or '').strip()
             team_id = (body.get('id') or '').strip()
-            score = int(body.get('score', 0))
-            hole  = max(1, min(18, int(body.get('hole', 1))))
+            try:
+                score = int(body.get('score', 0))
+                hole  = max(1, min(18, int(body.get('hole', 1))))
+            except (ValueError, TypeError):
+                return self.json_response({'error': 'Invalid score or hole.'}, 400)
             if not team_id or not play_date:
                 return self.json_response({'error': 'id and date required.'}, 400)
             update_team_score(team_id, score, hole, play_date)

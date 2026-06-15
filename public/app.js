@@ -23,9 +23,6 @@ function formatDateMed(iso) {
   return parseDateLocal(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function formatDayToggleLabel(iso) {
-  return parseDateLocal(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-}
 
 // --- Tab switching ---
 
@@ -36,13 +33,12 @@ function switchTab(tab) {
   document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
   document.getElementById('tabScores').classList.toggle('active', tab === 'scores');
 
+  clearInterval(scoresPollInterval);
+  scoresPollInterval = null;
   if (tab === 'scores') {
     renderScoreDayToggle(currentData?.playDates || []);
     loadScores();
     scoresPollInterval = setInterval(loadScores, 10000);
-  } else {
-    clearInterval(scoresPollInterval);
-    scoresPollInterval = null;
   }
 }
 
@@ -63,7 +59,7 @@ function renderScoreDayToggle(playDates) {
   bar.classList.remove('hidden');
   bar.innerHTML = playDates.map(iso => `
     <button class="day-toggle-btn${iso === selectedScoreDate ? ' active' : ''}"
-            onclick="selectScoreDay('${iso}')">${formatDayToggleLabel(iso)}</button>
+            onclick="selectScoreDay('${iso}')">${formatDateMed(iso)}</button>
   `).join('');
 }
 
@@ -83,7 +79,7 @@ function renderCommishDayToggle(playDates) {
   section.classList.remove('hidden');
   bar.innerHTML = playDates.map(iso => `
     <button class="day-toggle-btn${iso === selectedCommishDate ? ' active' : ''}"
-            onclick="selectCommishDay('${iso}')">${formatDayToggleLabel(iso)}</button>
+            onclick="selectCommishDay('${iso}')">${formatDateMed(iso)}</button>
   `).join('');
 }
 
@@ -178,7 +174,7 @@ function renderDayRosters(playDates, signups) {
       ? players.map(p => `
           <li>
             <span>${escHtml(p.name)}</span>
-            <button class="remove-btn" title="Remove" onclick="removePlayer('${escHtml(p.name)}')">✕</button>
+            <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
           </li>`).join('')
       : '<li class="empty-state">No one yet — be the first!</li>';
     return `
@@ -205,7 +201,7 @@ function renderList(listId, players) {
   ul.innerHTML = players.map(p => `
     <li>
       <span>${escHtml(p.name)}</span>
-      <button class="remove-btn" title="Remove" onclick="removePlayer('${escHtml(p.name)}')">✕</button>
+      <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
     </li>`).join('');
 }
 
@@ -436,7 +432,8 @@ document.getElementById('ctpLeaderSaveBtn').addEventListener('click', async () =
   const feet = parseInt(document.getElementById('ctpFeetInput').value) || 0;
   const inches = parseInt(document.getElementById('ctpInchInput').value) || 0;
   const distance = feet + inches / 12;
-  if (!name || distance <= 0) return;
+  if (!name) return;
+  if (distance <= 0) { document.getElementById('ctpFeetInput').focus(); return; }
   await fetch('/api/ctp/entry', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -512,7 +509,7 @@ function renderCtp(ctp) {
       <span class="ctp-rank">${i === 0 ? '🏆' : `${i + 1}.`}</span>
       <span class="ctp-name">${escHtml(e.name)}</span>
       <span class="ctp-dist">${formatFtIn(e.distance)}</span>
-      <button class="remove-btn" onclick="removeCtp('${escHtml(e.name)}')">✕</button>
+      <button class="remove-btn" onclick="removeCtp(${JSON.stringify(e.name)})">✕</button>
     </li>`).join('');
 }
 
