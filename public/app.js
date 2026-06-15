@@ -328,7 +328,7 @@ document.getElementById('addDateBtn').addEventListener('click', () => {
 });
 
 document.getElementById('setDatesBtn').addEventListener('click', async () => {
-  const inputs = document.querySelectorAll('.date-input');
+  const inputs = document.querySelectorAll('#dateInputList .date-input');
   const dates = [...inputs].map(i => i.value).filter(Boolean);
   if (!dates.length) { showFeedback('Enter at least one date.', 'error', 'dateFeedback'); return; }
   if (!confirm('Updating dates will clear all current signups. Continue?')) return;
