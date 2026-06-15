@@ -91,6 +91,22 @@ header h1 {
   background: var(--gray-light);
 }
 
+.live-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #e63946;
+  letter-spacing: 0.5px;
+  margin-left: 5px;
+  vertical-align: middle;
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
 main {
   max-width: 720px;
   margin: 0 auto;

@@ -126,10 +126,21 @@ async function loadSignups() {
   render(currentData);
 }
 
+function todayISO() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+}
+
+function updateLiveBadge(playDates) {
+  const isLive = playDates.includes(todayISO());
+  document.getElementById('liveBadge').classList.toggle('hidden', !isLive);
+}
+
 function render(data) {
   const { playDates, signups } = data;
 
   document.getElementById('weekLabel').textContent = playDates.map(formatDateMed).join('  ·  ');
+  updateLiveBadge(playDates);
 
   const multiDay = playDates.length >= 2;
   document.getElementById('eitherToggle').style.display = multiDay ? 'block' : 'none';
