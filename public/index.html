@@ -22,6 +22,7 @@
   <nav class="tab-bar">
     <button class="tab-btn active" id="tabSignup" onclick="switchTab('signup')">✏️ Sign Up</button>
     <button class="tab-btn" id="tabScores" onclick="switchTab('scores')">⛳ Scores <span class="live-badge hidden" id="liveBadge">● LIVE</span></button>
+    <button class="tab-btn" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
   </nav>
 
   <main>
@@ -145,10 +146,28 @@
 
           <button class="btn-reset" id="resetBtn">Reset Signups for New Week</button>
           <p class="hint">Clears all signups but keeps the play dates.</p>
+
+          <div class="commish-divider"></div>
+
+          <button class="btn-reset-scores" id="clearChatBtn">Clear Chat</button>
+          <p class="hint">Removes all chat messages.</p>
         </div>
       </section>
 
     </div><!-- /viewSignup -->
+
+    <!-- ── Chat view ── -->
+    <div id="viewChat" class="hidden">
+      <section class="card chat-compose-card">
+        <div class="chat-compose">
+          <input type="text" id="chatNameInput" class="chat-input-name" placeholder="Your name" autocomplete="name" />
+          <input type="text" id="chatTextInput" class="chat-input-text" placeholder="Say something... 🔥" autocomplete="off" />
+          <button class="btn-chat-send" id="chatSendBtn">Send</button>
+        </div>
+      </section>
+      <div id="chatMessages"></div>
+      <p class="scores-hint hidden" id="chatHint">No messages yet — be the first!</p>
+    </div>
 
     <!-- ── Scores view ── -->
     <div id="viewScores" class="hidden">
@@ -179,6 +198,6 @@
 
   </main>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

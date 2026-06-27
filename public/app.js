@@ -1,6 +1,7 @@
 let currentData = null;
 let activeTab = 'signup';
 let scoresPollInterval = null;
+let chatPollInterval = null;
 let selectedScoreDate = null;
 let selectedCommishDate = null;
 
@@ -30,15 +31,22 @@ function switchTab(tab) {
   activeTab = tab;
   document.getElementById('viewSignup').classList.toggle('hidden', tab !== 'signup');
   document.getElementById('viewScores').classList.toggle('hidden', tab !== 'scores');
+  document.getElementById('viewChat').classList.toggle('hidden', tab !== 'chat');
   document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
   document.getElementById('tabScores').classList.toggle('active', tab === 'scores');
+  document.getElementById('tabChat').classList.toggle('active', tab === 'chat');
 
   clearInterval(scoresPollInterval);
+  clearInterval(chatPollInterval);
   scoresPollInterval = null;
+  chatPollInterval = null;
   if (tab === 'scores') {
     renderScoreDayToggle(currentData?.playDates || []);
     loadScores();
     scoresPollInterval = setInterval(loadScores, 10000);
+  } else if (tab === 'chat') {
+    loadMessages();
+    chatPollInterval = setInterval(loadMessages, 10000);
   }
 }
 
@@ -565,5 +573,64 @@ async function adjustScore(id, currentScore, currentHole, scoreDelta, holeDelta)
   });
   loadScores();
 }
+
+// --- Chat ---
+
+async function loadMessages() {
+  const res = await fetch('/api/messages');
+  const msgs = await res.json();
+  renderMessages(msgs);
+}
+
+function formatMsgTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderMessages(msgs) {
+  const container = document.getElementById('chatMessages');
+  const hint = document.getElementById('chatHint');
+  if (!msgs.length) {
+    container.innerHTML = '';
+    hint.classList.remove('hidden');
+    return;
+  }
+  hint.classList.add('hidden');
+  container.innerHTML = msgs.map(m => `
+    <div class="chat-msg card">
+      <div class="chat-msg-header">
+        <span class="chat-msg-name">${escHtml(m.name)}</span>
+        <span class="chat-msg-time">${formatMsgTime(m.ts)}</span>
+      </div>
+      <p class="chat-msg-text">${escHtml(m.text)}</p>
+    </div>`).join('');
+}
+
+document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
+document.getElementById('chatTextInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+async function sendMessage() {
+  const name = document.getElementById('chatNameInput').value.trim();
+  const text = document.getElementById('chatTextInput').value.trim();
+  if (!name || !text) return;
+  const res = await fetch('/api/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, text })
+  });
+  const result = await res.json();
+  if (result.success) {
+    document.getElementById('chatTextInput').value = '';
+    loadMessages();
+  }
+}
+
+document.getElementById('clearChatBtn').addEventListener('click', async () => {
+  if (!confirm('Clear all chat messages?')) return;
+  await fetch('/api/messages/clear', { method: 'POST' });
+  loadMessages();
+});
 
 loadSignups();
