@@ -849,9 +849,7 @@ main {
 
 .chat-compose-card {
   padding: 16px;
-  position: sticky;
-  top: 56px;
-  z-index: 5;
+  margin-top: 16px;
 }
 
 .chat-compose {

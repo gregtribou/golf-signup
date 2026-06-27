@@ -22,7 +22,6 @@
   <nav class="tab-bar">
     <button class="tab-btn active" id="tabSignup" onclick="switchTab('signup')">✏️ Sign Up</button>
     <button class="tab-btn" id="tabScores" onclick="switchTab('scores')">⛳ Scores <span class="live-badge hidden" id="liveBadge">● LIVE</span></button>
-    <button class="tab-btn" id="tabChat" onclick="switchTab('chat')">💬 Chat</button>
   </nav>
 
   <main>
@@ -156,8 +155,11 @@
 
     </div><!-- /viewSignup -->
 
-    <!-- ── Chat view ── -->
-    <div id="viewChat" class="hidden">
+    <!-- ── Scores view ── -->
+    <div id="viewScores" class="hidden">
+      <div class="day-toggle-bar hidden" id="scoreDayToggle"></div>
+      <div id="teamCards"></div>
+      <p class="scores-hint hidden" id="scoresHint">Commish hasn't set up teams yet.<br>Check back once teams are posted.</p>
       <section class="card chat-compose-card">
         <div class="chat-compose">
           <input type="text" id="chatNameInput" class="chat-input-name" placeholder="Your name" autocomplete="name" />
@@ -167,13 +169,6 @@
       </section>
       <div id="chatMessages"></div>
       <p class="scores-hint hidden" id="chatHint">No messages yet — be the first!</p>
-    </div>
-
-    <!-- ── Scores view ── -->
-    <div id="viewScores" class="hidden">
-      <div class="day-toggle-bar hidden" id="scoreDayToggle"></div>
-      <div id="teamCards"></div>
-      <p class="scores-hint hidden" id="scoresHint">Commish hasn't set up teams yet.<br>Check back once teams are posted.</p>
       <div class="card ctp-card hidden" id="ctpCard">
         <div class="ctp-header">
           <span class="ctp-icon">📍</span>
@@ -198,6 +193,6 @@
 
   </main>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

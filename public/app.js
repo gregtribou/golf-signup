@@ -31,10 +31,8 @@ function switchTab(tab) {
   activeTab = tab;
   document.getElementById('viewSignup').classList.toggle('hidden', tab !== 'signup');
   document.getElementById('viewScores').classList.toggle('hidden', tab !== 'scores');
-  document.getElementById('viewChat').classList.toggle('hidden', tab !== 'chat');
   document.getElementById('tabSignup').classList.toggle('active', tab === 'signup');
   document.getElementById('tabScores').classList.toggle('active', tab === 'scores');
-  document.getElementById('tabChat').classList.toggle('active', tab === 'chat');
 
   clearInterval(scoresPollInterval);
   clearInterval(chatPollInterval);
@@ -43,9 +41,8 @@ function switchTab(tab) {
   if (tab === 'scores') {
     renderScoreDayToggle(currentData?.playDates || []);
     loadScores();
-    scoresPollInterval = setInterval(loadScores, 10000);
-  } else if (tab === 'chat') {
     loadMessages();
+    scoresPollInterval = setInterval(loadScores, 10000);
     chatPollInterval = setInterval(loadMessages, 10000);
   }
 }
