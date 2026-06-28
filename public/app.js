@@ -518,7 +518,8 @@ function renderCtp(ctp) {
     </li>`).join('');
 }
 
-function formatScore(score) {
+function formatScore(score, hole) {
+  if (score === 0 && hole === 1) return '—';
   if (score === 0) return 'E';
   return score > 0 ? `+${score}` : `${score}`;
 }
@@ -535,8 +536,9 @@ function renderTeams(teams) {
   hint.classList.add('hidden');
 
   container.innerHTML = teams.map(t => {
-    const scoreClass = t.score < 0 ? 'under' : t.score > 0 ? 'over' : 'even';
-    const holeLabel = t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
+    const notStarted = t.score === 0 && t.hole === 1;
+    const scoreClass = notStarted ? 'even' : t.score < 0 ? 'under' : t.score > 0 ? 'over' : 'even';
+    const holeLabel = notStarted ? 'Not started' : t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
     return `
       <div class="team-card card">
         <div class="team-header">
@@ -547,7 +549,7 @@ function renderTeams(teams) {
         </div>
         <div class="score-controls">
           <button class="score-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, -1, 0)">−</button>
-          <span class="score-display ${scoreClass}">${formatScore(t.score)}</span>
+          <span class="score-display ${scoreClass}">${formatScore(t.score, t.hole)}</span>
           <button class="score-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, +1, 0)">+</button>
           <div class="hole-controls">
             <button class="hole-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, 0, -1)">◀</button>
