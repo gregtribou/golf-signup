@@ -66,12 +66,30 @@ if DATABASE_URL:
                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
                 """, (json.dumps(dates),))
 
+    def _get_game_dates():
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("SELECT value FROM settings WHERE key = 'gameDates'")
+                row = cur.fetchone()
+                return row[0] if row else _get_play_dates()
+
+    def _set_game_dates(dates):
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO settings (key, value) VALUES ('gameDates', %s)
+                    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+                """, (json.dumps(dates),))
+
+    def set_game_dates(dates):
+        _set_game_dates(dates)
+
     def load_data():
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("SELECT name, days, either, filler FROM signups ORDER BY LOWER(name)")
                 signups = [dict(r) for r in cur.fetchall()]
-        return {'playDates': _get_play_dates(), 'signups': signups}
+        return {'playDates': _get_play_dates(), 'gameDates': _get_game_dates(), 'signups': signups}
 
     def save_signup(name, days, either, filler):
         with _conn() as c:
@@ -209,6 +227,7 @@ else:
             if 'ctp' in data:
                 data['scores'][first]['ctp'] = data.pop('ctp')
             _save(data)
+        data.setdefault('gameDates', data.get('playDates', _default_dates()))
         data.setdefault('scores', {})
         return data
 
@@ -241,6 +260,11 @@ else:
         data = load_data()
         data['playDates'] = dates
         data['signups'] = []
+        _save(data)
+
+    def set_game_dates(dates):
+        data = load_data()
+        data['gameDates'] = dates
         _save(data)
 
     def load_teams(play_date):
@@ -359,6 +383,13 @@ class Handler(SimpleHTTPRequestHandler):
             if not dates:
                 return self.json_response({'error': 'At least one date required.'}, 400)
             set_dates(dates)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/setgamedates':
+            dates = sorted(set(d.strip() for d in body.get('dates', []) if d and d.strip()))
+            if not dates:
+                return self.json_response({'error': 'At least one date required.'}, 400)
+            set_game_dates(dates)
             self.json_response({'success': True})
 
         elif self.path == '/api/reset':

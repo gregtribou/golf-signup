@@ -39,7 +39,7 @@ function switchTab(tab) {
   scoresPollInterval = null;
   chatPollInterval = null;
   if (tab === 'scores') {
-    renderScoreDayToggle(currentData?.playDates || []);
+    renderScoreDayToggle(currentData?.gameDates || []);
     loadScores();
     loadMessages();
     scoresPollInterval = setInterval(loadScores, 10000);
@@ -90,13 +90,13 @@ function renderCommishDayToggle(playDates) {
 
 window.selectScoreDay = function(iso) {
   selectedScoreDate = iso;
-  renderScoreDayToggle(currentData?.playDates || []);
+  renderScoreDayToggle(currentData?.gameDates || []);
   loadScores();
 };
 
 window.selectCommishDay = function(iso) {
   selectedCommishDate = iso;
-  renderCommishDayToggle(currentData?.playDates || []);
+  renderCommishDayToggle(currentData?.gameDates || []);
   loadCommishScores();
 };
 
@@ -115,13 +115,14 @@ function loadCommishScores() {
 async function loadSignups() {
   const res = await fetch('/api/signups');
   currentData = await res.json();
-  // Init selected dates from playDates if not set
-  if (currentData.playDates && currentData.playDates.length > 0) {
-    if (!selectedScoreDate || !currentData.playDates.includes(selectedScoreDate)) {
-      selectedScoreDate = currentData.playDates[0];
+  // Init selected dates from gameDates if not set
+  const gameDates = currentData.gameDates || currentData.playDates || [];
+  if (gameDates.length > 0) {
+    if (!selectedScoreDate || !gameDates.includes(selectedScoreDate)) {
+      selectedScoreDate = gameDates[0];
     }
-    if (!selectedCommishDate || !currentData.playDates.includes(selectedCommishDate)) {
-      selectedCommishDate = currentData.playDates[0];
+    if (!selectedCommishDate || !gameDates.includes(selectedCommishDate)) {
+      selectedCommishDate = gameDates[0];
     }
   }
   render(currentData);
@@ -133,7 +134,8 @@ function todayISO() {
 }
 
 function updateLiveBadge(playDates) {
-  const isLive = playDates.includes(todayISO());
+  const gameDates = currentData?.gameDates || playDates;
+  const isLive = gameDates.includes(todayISO());
   document.getElementById('liveBadge').classList.toggle('hidden', !isLive);
 }
 
@@ -284,8 +286,10 @@ document.getElementById('commishToggle').addEventListener('click', () => {
   chevron.classList.toggle('open');
   if (opening) {
     const playDates = currentData?.playDates || [];
+    const gameDates = currentData?.gameDates || playDates;
     populateDateInputs(playDates);
-    renderCommishDayToggle(playDates);
+    populateGameDateInputs(gameDates);
+    renderCommishDayToggle(gameDates);
     loadCommishScores();
   }
 });
@@ -295,7 +299,7 @@ document.getElementById('commishToggle').addEventListener('click', () => {
 function populateDateInputs(playDates) {
   const container = document.getElementById('dateInputList');
   container.innerHTML = playDates.map(iso => makeDateRow(iso)).join('');
-  updateRemoveButtons();
+  updateRemoveButtons(container);
 }
 
 function makeDateRow(value = '') {
@@ -306,18 +310,19 @@ function makeDateRow(value = '') {
     </div>`;
 }
 
-function updateRemoveButtons() {
-  const rows = document.querySelectorAll('.date-input-row');
+function updateRemoveButtons(container) {
+  const rows = container.querySelectorAll('.date-input-row');
   rows.forEach(row => {
     row.querySelector('.btn-remove-date').style.visibility = rows.length > 1 ? 'visible' : 'hidden';
   });
 }
 
 window.removeDateRow = function(btn) {
-  const rows = document.querySelectorAll('.date-input-row');
+  const container = btn.closest('.date-input-row').parentElement;
+  const rows = container.querySelectorAll('.date-input-row');
   if (rows.length <= 1) return;
   btn.closest('.date-input-row').remove();
-  updateRemoveButtons();
+  updateRemoveButtons(container);
 };
 
 document.getElementById('addDateBtn').addEventListener('click', () => {
@@ -325,7 +330,7 @@ document.getElementById('addDateBtn').addEventListener('click', () => {
   const rows = container.querySelectorAll('.date-input-row');
   if (rows.length >= 4) return;
   container.insertAdjacentHTML('beforeend', makeDateRow());
-  updateRemoveButtons();
+  updateRemoveButtons(container);
 });
 
 document.getElementById('setDatesBtn').addEventListener('click', async () => {
@@ -348,6 +353,44 @@ document.getElementById('setDatesBtn').addEventListener('click', async () => {
     loadCommishScores();
   } else {
     showFeedback(result.error || 'Something went wrong.', 'error', 'dateFeedback');
+  }
+});
+
+// --- Game date management ---
+
+function populateGameDateInputs(gameDates) {
+  const container = document.getElementById('gameDateInputList');
+  container.innerHTML = gameDates.map(iso => makeDateRow(iso)).join('');
+  updateRemoveButtons(container);
+}
+
+document.getElementById('addGameDateBtn').addEventListener('click', () => {
+  const container = document.getElementById('gameDateInputList');
+  const rows = container.querySelectorAll('.date-input-row');
+  if (rows.length >= 4) return;
+  container.insertAdjacentHTML('beforeend', makeDateRow());
+  updateRemoveButtons(container);
+});
+
+document.getElementById('setGameDatesBtn').addEventListener('click', async () => {
+  const inputs = document.querySelectorAll('#gameDateInputList .date-input');
+  const dates = [...inputs].map(i => i.value).filter(Boolean);
+  if (!dates.length) { showFeedback('Enter at least one date.', 'error', 'gameDateFeedback'); return; }
+  const res = await fetch('/api/setgamedates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dates })
+  });
+  const result = await res.json();
+  if (result.success) {
+    showFeedback('✓ Game dates updated!', 'success', 'gameDateFeedback');
+    await loadSignups();
+    populateGameDateInputs(currentData.gameDates);
+    selectedCommishDate = currentData.gameDates[0];
+    renderCommishDayToggle(currentData.gameDates);
+    loadCommishScores();
+  } else {
+    showFeedback(result.error || 'Something went wrong.', 'error', 'gameDateFeedback');
   }
 });
 
