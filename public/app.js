@@ -519,7 +519,7 @@ function renderCtp(ctp) {
 }
 
 function formatScore(score, hole) {
-  if (score === 0 && hole === 1) return '—';
+  if (score === 0 && hole === 1) return '-';
   if (score === 0) return 'E';
   return score > 0 ? `+${score}` : `${score}`;
 }
@@ -538,7 +538,7 @@ function renderTeams(teams) {
   container.innerHTML = teams.map(t => {
     const notStarted = t.score === 0 && t.hole === 1;
     const scoreClass = notStarted ? 'even' : t.score < 0 ? 'under' : t.score > 0 ? 'over' : 'even';
-    const holeLabel = notStarted ? 'Not started' : t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
+    const holeLabel = notStarted ? '-' : t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
     return `
       <div class="team-card card">
         <div class="team-header">
