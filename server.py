@@ -160,7 +160,7 @@ if DATABASE_URL:
     def reset_team_scores(play_date):
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("UPDATE teams SET score=0, hole=0 WHERE id LIKE %s", (f"{play_date}_%",))
+                cur.execute("DELETE FROM teams WHERE id LIKE %s", (f"{play_date}_%",))
 
     def _ctp_key(play_date):
         return f"ctp_{play_date}"
@@ -290,8 +290,7 @@ else:
 
     def reset_team_scores(play_date):
         data = load_data()
-        for t in _day_scores(data, play_date)['teams']:
-            t['score'] = 0; t['hole'] = 0
+        _day_scores(data, play_date)['teams'] = []
         _save(data)
 
     def load_ctp(play_date):

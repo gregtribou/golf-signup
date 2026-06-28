@@ -505,13 +505,14 @@ async function removeCtp(name) {
 
 document.getElementById('resetScoresBtn').addEventListener('click', async () => {
   if (!selectedCommishDate) return;
-  if (!confirm('Reset all scores to E and hole 1? Teams will be kept.')) return;
+  if (!confirm('Remove all teams and scores for this game day?')) return;
   await fetch('/api/scores/reset', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date: selectedCommishDate })
   });
-  showFeedback('✓ Scores reset!', 'success', 'teamsFeedback');
+  showFeedback('✓ Teams cleared!', 'success', 'teamsFeedback');
+  loadCommishScores();
   if (activeTab === 'scores') loadScores();
 });
 
