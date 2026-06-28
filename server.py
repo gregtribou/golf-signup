@@ -39,7 +39,7 @@ if DATABASE_URL:
                         name TEXT NOT NULL,
                         players TEXT NOT NULL DEFAULT '',
                         score INTEGER NOT NULL DEFAULT 0,
-                        hole INTEGER NOT NULL DEFAULT 1,
+                        hole INTEGER NOT NULL DEFAULT 0,
                         sort_order INTEGER NOT NULL DEFAULT 0
                     );
                     CREATE TABLE IF NOT EXISTS messages (
@@ -131,7 +131,7 @@ if DATABASE_URL:
                         INSERT INTO teams (id, name, players, score, hole, sort_order)
                         VALUES (%s, %s, %s, %s, %s, %s)
                     """, (f"{prefix}{t['id']}", t['name'], t['players'],
-                          old.get('score', 0), old.get('hole', 1), i))
+                          old.get('score', 0), old.get('hole', 0), i))
 
     def update_team_score(team_id, score, hole, play_date):
         full_id = f"{_team_prefix(play_date)}{team_id}"
@@ -142,7 +142,7 @@ if DATABASE_URL:
     def reset_team_scores(play_date):
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("UPDATE teams SET score=0, hole=1 WHERE id LIKE %s", (f"{play_date}_%",))
+                cur.execute("UPDATE teams SET score=0, hole=0 WHERE id LIKE %s", (f"{play_date}_%",))
 
     def _ctp_key(play_date):
         return f"ctp_{play_date}"
@@ -253,7 +253,7 @@ else:
         day['teams'] = [{
             'id': t['id'], 'name': t['name'], 'players': t['players'],
             'score': existing.get(t['name'], {}).get('score', 0),
-            'hole':  existing.get(t['name'], {}).get('hole', 1),
+            'hole':  existing.get(t['name'], {}).get('hole', 0),
         } for t in teams]
         _save(data)
 
@@ -267,7 +267,7 @@ else:
     def reset_team_scores(play_date):
         data = load_data()
         for t in _day_scores(data, play_date)['teams']:
-            t['score'] = 0; t['hole'] = 1
+            t['score'] = 0; t['hole'] = 0
         _save(data)
 
     def load_ctp(play_date):
@@ -385,7 +385,7 @@ class Handler(SimpleHTTPRequestHandler):
             team_id = (body.get('id') or '').strip()
             try:
                 score = int(body.get('score', 0))
-                hole  = max(1, min(18, int(body.get('hole', 1))))
+                hole  = max(0, min(18, int(body.get('hole', 0))))
             except (ValueError, TypeError):
                 return self.json_response({'error': 'Invalid score or hole.'}, 400)
             if not team_id or not play_date:

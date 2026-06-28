@@ -519,7 +519,7 @@ function renderCtp(ctp) {
 }
 
 function formatScore(score, hole) {
-  if (score === 0 && hole === 1) return '-';
+  if (hole === 0) return '-';
   if (score === 0) return 'E';
   return score > 0 ? `+${score}` : `${score}`;
 }
@@ -536,7 +536,7 @@ function renderTeams(teams) {
   hint.classList.add('hidden');
 
   container.innerHTML = teams.map(t => {
-    const notStarted = t.score === 0 && t.hole === 1;
+    const notStarted = t.hole === 0;
     const scoreClass = notStarted ? 'even' : t.score < 0 ? 'under' : t.score > 0 ? 'over' : 'even';
     const holeLabel = notStarted ? '-' : t.hole >= 18 ? 'Final' : `Thru ${t.hole}`;
     return `
@@ -553,7 +553,7 @@ function renderTeams(teams) {
           <button class="score-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, +1, 0)">+</button>
           <div class="hole-controls">
             <button class="hole-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, 0, -1)">◀</button>
-            <span class="hole-display">Hole ${t.hole}</span>
+            <span class="hole-display">${t.hole === 0 ? '-' : 'Hole ' + t.hole}</span>
             <button class="hole-btn" onclick="adjustScore('${escHtml(t.id)}', ${t.score}, ${t.hole}, 0, +1)">▶</button>
           </div>
         </div>
@@ -564,7 +564,7 @@ function renderTeams(teams) {
 async function adjustScore(id, currentScore, currentHole, scoreDelta, holeDelta) {
   if (!selectedScoreDate) return;
   const newScore = currentScore + scoreDelta;
-  const newHole = Math.max(1, Math.min(18, currentHole + holeDelta));
+  const newHole = Math.max(0, Math.min(18, currentHole + holeDelta));
   await fetch('/api/scores/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
