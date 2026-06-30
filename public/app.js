@@ -216,6 +216,20 @@ function escHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Pre-fill checkboxes when a known name is entered
+document.getElementById('nameInput').addEventListener('change', () => {
+  const name = document.getElementById('nameInput').value.trim().toLowerCase();
+  const existing = (currentData?.signups || []).find(s => s.name.toLowerCase() === name);
+  if (!existing) return;
+  const playDates = currentData?.playDates || [];
+  playDates.forEach(iso => {
+    const cb = document.getElementById(`check-${iso}`);
+    if (cb) cb.checked = !!existing.days?.[iso];
+  });
+  document.getElementById('eitherCheck').checked = !!existing.either;
+  document.getElementById('fillerCheck').checked = !!existing.filler;
+});
+
 // --- Signup submit ---
 
 document.getElementById('submitBtn').addEventListener('click', async () => {
