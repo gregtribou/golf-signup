@@ -678,7 +678,7 @@ function renderMessages(msgs) {
     <div class="chat-msg card">
       <div class="chat-msg-header">
         <span class="chat-msg-name">${escHtml(m.name)}</span>
-        <div class="chat-msg-right">
+        <div class="chat-msg-right" style="display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:6px;">
           ${renderReactions(m, selectedScoreDate)}
           <span class="chat-msg-time">${formatMsgTime(m.ts)}</span>
         </div>

@@ -905,7 +905,7 @@ main {
 .chat-msg-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   margin-bottom: 4px;
 }
 
@@ -929,6 +929,8 @@ main {
 
 .chat-msg-right {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
 }
@@ -936,7 +938,8 @@ main {
 .rxn-row {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
 }
