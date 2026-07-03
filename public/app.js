@@ -592,6 +592,7 @@ function renderTeams(teams) {
     hint.classList.remove('hidden');
     return;
   }
+  teams = [...teams].sort((a, b) => a.score - b.score);
   hint.classList.add('hidden');
 
   container.innerHTML = teams.map(t => {
