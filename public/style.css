@@ -927,41 +927,84 @@ main {
   word-break: break-word;
 }
 
-.reaction-bar {
+.chat-msg-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rxn-row {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 4px;
+  margin-top: 6px;
 }
 
-.reaction-btn {
+.rxn-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  background: #f0f0f0;
+  gap: 2px;
+  background: var(--surface-card, #f5f5f5);
   border: 1px solid #ddd;
-  border-radius: 20px;
-  padding: 3px 9px;
-  font-size: 1rem;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.82rem;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  line-height: 1;
+  line-height: 1.5;
+  transition: background 0.12s, border-color 0.12s;
 }
 
-.reaction-btn:hover {
-  background: #e0e8e0;
+.rxn-chip:hover {
+  background: #e8f5ec;
   border-color: var(--green-light);
 }
 
-.reaction-btn.reaction-active {
+.rxn-chip-on {
   background: #d4edda;
   border-color: var(--green);
 }
 
-.reaction-count {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #333;
+.rxn-chip-add {
+  color: #888;
+  font-size: 0.75rem;
+  padding: 1px 5px;
+}
+
+.rxn-chip-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.rxn-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 4px 6px;
+  display: flex;
+  gap: 2px;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.rxn-picker.hidden { display: none; }
+
+.rxn-pick-btn {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  padding: 4px 5px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.rxn-pick-btn:hover {
+  background: #f0f0f0;
 }
 
 @media (max-width: 480px) {

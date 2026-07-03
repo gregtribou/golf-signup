@@ -654,13 +654,15 @@ function myReactionKey(date, ts, name, emoji) {
 
 function renderReactions(m, date) {
   const counts = m.reactions || {};
-  const pills = REACTION_EMOJIS.map(emoji => {
-    const count = counts[emoji] || 0;
+  const activeChips = REACTION_EMOJIS.filter(e => (counts[e] || 0) > 0).map(emoji => {
+    const count = counts[emoji];
     const reacted = !!localStorage.getItem(myReactionKey(date, m.ts, m.name, emoji));
-    const active = reacted ? ' reaction-active' : '';
-    return `<button class="reaction-btn${active}" data-emoji="${emoji}" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}">${emoji}${count > 0 ? `<span class="reaction-count">${count}</span>` : ''}</button>`;
+    const active = reacted ? ' rxn-chip-on' : '';
+    return `<button class="rxn-chip${active}" data-emoji="${emoji}" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}">${emoji}<span class="rxn-chip-count">${count}</span></button>`;
   }).join('');
-  return `<div class="reaction-bar">${pills}</div>`;
+  const addBtn = `<button class="rxn-chip rxn-chip-add" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}">＋</button>`;
+  const picker = `<div class="rxn-picker hidden" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}">${REACTION_EMOJIS.map(e => `<button class="rxn-pick-btn" data-emoji="${e}" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}">${e}</button>`).join('')}</div>`;
+  return `<div class="rxn-row">${activeChips}${addBtn}${picker}</div>`;
 }
 
 function renderMessages(msgs) {
@@ -676,30 +678,53 @@ function renderMessages(msgs) {
     <div class="chat-msg card">
       <div class="chat-msg-header">
         <span class="chat-msg-name">${escHtml(m.name)}</span>
-        <span class="chat-msg-time">${formatMsgTime(m.ts)}</span>
+        <div class="chat-msg-right">
+          <div class="rxn-inline" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}"></div>
+          <span class="chat-msg-time">${formatMsgTime(m.ts)}</span>
+        </div>
       </div>
       <p class="chat-msg-text">${escHtml(m.text)}</p>
       ${renderReactions(m, selectedScoreDate)}
     </div>`).join('');
 
-  container.querySelectorAll('.reaction-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const emoji = btn.dataset.emoji;
-      const ts = btn.dataset.ts;
-      const name = btn.dataset.name;
-      const key = myReactionKey(selectedScoreDate, ts, name, emoji);
-      const alreadyReacted = !!localStorage.getItem(key);
-      const action = alreadyReacted ? 'remove' : 'add';
-      if (alreadyReacted) localStorage.removeItem(key);
-      else localStorage.setItem(key, '1');
-      await fetch('/api/messages/react', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: selectedScoreDate, ts, name, emoji, action })
+  async function doReact(ts, name, emoji) {
+    const key = myReactionKey(selectedScoreDate, ts, name, emoji);
+    const alreadyReacted = !!localStorage.getItem(key);
+    const action = alreadyReacted ? 'remove' : 'add';
+    if (alreadyReacted) localStorage.removeItem(key); else localStorage.setItem(key, '1');
+    await fetch('/api/messages/react', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selectedScoreDate, ts, name, emoji, action })
+    });
+    loadMessages();
+  }
+
+  container.querySelectorAll('.rxn-chip:not(.rxn-chip-add)').forEach(btn => {
+    btn.addEventListener('click', () => doReact(btn.dataset.ts, btn.dataset.name, btn.dataset.emoji));
+  });
+
+  container.querySelectorAll('.rxn-chip-add').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      document.querySelectorAll('.rxn-picker').forEach(p => {
+        if (p.dataset.ts !== btn.dataset.ts || p.dataset.name !== btn.dataset.name) p.classList.add('hidden');
       });
-      loadMessages();
+      const picker = btn.closest('.rxn-row').querySelector('.rxn-picker');
+      picker.classList.toggle('hidden');
     });
   });
+
+  container.querySelectorAll('.rxn-pick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.rxn-picker').classList.add('hidden');
+      doReact(btn.dataset.ts, btn.dataset.name, btn.dataset.emoji);
+    });
+  });
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.rxn-picker').forEach(p => p.classList.add('hidden'));
+  }, { once: true });
 }
 
 document.getElementById('chatSendBtn').addEventListener('click', sendMessage);
