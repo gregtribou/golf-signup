@@ -51,6 +51,7 @@ if DATABASE_URL:
                 )""")
                 cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS play_date TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}'")
+                cur.execute("ALTER TABLE signups ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW()")
     _init_db()
 
     def _get_play_dates():
@@ -89,7 +90,7 @@ if DATABASE_URL:
     def load_data():
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT name, days, either, filler FROM signups ORDER BY id")
+                cur.execute("SELECT name, days, either, filler FROM signups ORDER BY created_at")
                 signups = [dict(r) for r in cur.fetchall()]
         return {'playDates': _get_play_dates(), 'gameDates': _get_game_dates(), 'signups': signups}
 
