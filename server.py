@@ -47,9 +47,11 @@ if DATABASE_URL:
                         name TEXT NOT NULL,
                         text TEXT NOT NULL,
                         ts TIMESTAMP NOT NULL DEFAULT NOW(),
-                        play_date TEXT NOT NULL DEFAULT ''
+                        play_date TEXT NOT NULL DEFAULT '',
+                        reactions JSONB NOT NULL DEFAULT '{}'
                     );
                     ALTER TABLE messages ADD COLUMN IF NOT EXISTS play_date TEXT NOT NULL DEFAULT '';
+                    ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}';
                 """)
     _init_db()
 
@@ -185,19 +187,35 @@ if DATABASE_URL:
     def load_messages(play_date):
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT name, text, ts FROM messages WHERE play_date=%s ORDER BY ts DESC LIMIT 50", (play_date,))
+                cur.execute("SELECT name, text, ts, reactions FROM messages WHERE play_date=%s ORDER BY ts DESC LIMIT 50", (play_date,))
                 return [{'name': r['name'], 'text': r['text'],
-                         'ts': r['ts'].strftime('%Y-%m-%dT%H:%M:%S')} for r in cur.fetchall()]
+                         'ts': r['ts'].strftime('%Y-%m-%dT%H:%M:%S'),
+                         'reactions': r['reactions'] or {}} for r in cur.fetchall()]
 
     def add_message(name, text, play_date):
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("INSERT INTO messages (name, text, play_date) VALUES (%s, %s, %s)", (name, text, play_date))
+                cur.execute("INSERT INTO messages (name, text, play_date, reactions) VALUES (%s, %s, %s, %s)", (name, text, play_date, '{}'))
 
     def clear_messages(play_date):
         with _conn() as c:
             with c.cursor() as cur:
                 cur.execute("DELETE FROM messages WHERE play_date=%s", (play_date,))
+
+    def react_message(play_date, ts, name, emoji, delta):
+        with _conn() as c:
+            with c.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT id, reactions FROM messages WHERE play_date=%s AND ts=%s AND name=%s", (play_date, ts, name))
+                row = cur.fetchone()
+                if not row:
+                    return
+                reactions = row['reactions'] or {}
+                count = reactions.get(emoji, 0) + delta
+                if count <= 0:
+                    reactions.pop(emoji, None)
+                else:
+                    reactions[emoji] = count
+                cur.execute("UPDATE messages SET reactions=%s WHERE id=%s", (json.dumps(reactions), row['id']))
 
 else:
     # ---- local JSON file storage ----
@@ -326,6 +344,23 @@ else:
         data = load_data()
         if isinstance(data.get('messages'), dict):
             data['messages'][play_date] = []
+        _save(data)
+
+    def react_message(play_date, ts, name, emoji, delta):
+        data = load_data()
+        msgs = data.get('messages', {})
+        if not isinstance(msgs, dict):
+            return
+        day_msgs = msgs.get(play_date, [])
+        for m in day_msgs:
+            if m.get('ts') == ts and m.get('name') == name:
+                reactions = m.setdefault('reactions', {})
+                count = reactions.get(emoji, 0) + delta
+                if count <= 0:
+                    reactions.pop(emoji, None)
+                else:
+                    reactions[emoji] = count
+                break
         _save(data)
 
     def _save(data):
@@ -503,6 +538,18 @@ class Handler(SimpleHTTPRequestHandler):
             if not play_date:
                 return self.json_response({'error': 'date required'}, 400)
             clear_messages(play_date)
+            self.json_response({'success': True})
+
+        elif self.path == '/api/messages/react':
+            play_date = (body.get('date') or '').strip()
+            ts        = (body.get('ts') or '').strip()
+            name      = (body.get('name') or '').strip()
+            emoji     = (body.get('emoji') or '').strip()
+            action    = (body.get('action') or '').strip()  # 'add' or 'remove'
+            if not all([play_date, ts, name, emoji, action]):
+                return self.json_response({'error': 'Missing fields'}, 400)
+            delta = 1 if action == 'add' else -1
+            react_message(play_date, ts, name, emoji, delta)
             self.json_response({'success': True})
 
         else:
