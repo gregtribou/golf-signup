@@ -679,12 +679,11 @@ function renderMessages(msgs) {
       <div class="chat-msg-header">
         <span class="chat-msg-name">${escHtml(m.name)}</span>
         <div class="chat-msg-right">
-          <div class="rxn-inline" data-ts="${escHtml(m.ts)}" data-name="${escHtml(m.name)}"></div>
+          ${renderReactions(m, selectedScoreDate)}
           <span class="chat-msg-time">${formatMsgTime(m.ts)}</span>
         </div>
       </div>
       <p class="chat-msg-text">${escHtml(m.text)}</p>
-      ${renderReactions(m, selectedScoreDate)}
     </div>`).join('');
 
   async function doReact(ts, name, emoji) {
