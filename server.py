@@ -23,36 +23,34 @@ if DATABASE_URL:
     def _init_db():
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS signups (
-                        name TEXT PRIMARY KEY,
-                        days JSONB NOT NULL DEFAULT '{}',
-                        either BOOLEAN NOT NULL DEFAULT FALSE,
-                        filler BOOLEAN NOT NULL DEFAULT FALSE
-                    );
-                    CREATE TABLE IF NOT EXISTS settings (
-                        key TEXT PRIMARY KEY,
-                        value JSONB NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS teams (
-                        id TEXT PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        players TEXT NOT NULL DEFAULT '',
-                        score INTEGER NOT NULL DEFAULT 0,
-                        hole INTEGER NOT NULL DEFAULT 0,
-                        sort_order INTEGER NOT NULL DEFAULT 0
-                    );
-                    CREATE TABLE IF NOT EXISTS messages (
-                        id SERIAL PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        text TEXT NOT NULL,
-                        ts TIMESTAMP NOT NULL DEFAULT NOW(),
-                        play_date TEXT NOT NULL DEFAULT '',
-                        reactions JSONB NOT NULL DEFAULT '{}'
-                    );
-                    ALTER TABLE messages ADD COLUMN IF NOT EXISTS play_date TEXT NOT NULL DEFAULT '';
-                    ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}';
-                """)
+                cur.execute("""CREATE TABLE IF NOT EXISTS signups (
+                    name TEXT PRIMARY KEY,
+                    days JSONB NOT NULL DEFAULT '{}',
+                    either BOOLEAN NOT NULL DEFAULT FALSE,
+                    filler BOOLEAN NOT NULL DEFAULT FALSE
+                )""")
+                cur.execute("""CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value JSONB NOT NULL
+                )""")
+                cur.execute("""CREATE TABLE IF NOT EXISTS teams (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    players TEXT NOT NULL DEFAULT '',
+                    score INTEGER NOT NULL DEFAULT 0,
+                    hole INTEGER NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0
+                )""")
+                cur.execute("""CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    ts TIMESTAMP NOT NULL DEFAULT NOW(),
+                    play_date TEXT NOT NULL DEFAULT '',
+                    reactions JSONB NOT NULL DEFAULT '{}'
+                )""")
+                cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS play_date TEXT NOT NULL DEFAULT ''")
+                cur.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}'")
     _init_db()
 
     def _get_play_dates():
