@@ -938,7 +938,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 6px;
+  align-items: center;
 }
 
 .rxn-chip {
