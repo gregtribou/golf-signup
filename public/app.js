@@ -634,7 +634,8 @@ async function adjustScore(id, currentScore, currentHole, scoreDelta, holeDelta)
 // --- Chat ---
 
 async function loadMessages() {
-  const res = await fetch('/api/messages');
+  if (!selectedScoreDate) return;
+  const res = await fetch(`/api/messages?date=${encodeURIComponent(selectedScoreDate)}`);
   const msgs = await res.json();
   renderMessages(msgs);
 }
@@ -672,10 +673,11 @@ async function sendMessage() {
   const name = document.getElementById('chatNameInput').value.trim();
   const text = document.getElementById('chatTextInput').value.trim();
   if (!name || !text) return;
+  if (!selectedScoreDate) return;
   const res = await fetch('/api/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, text })
+    body: JSON.stringify({ name, text, date: selectedScoreDate })
   });
   const result = await res.json();
   if (result.success) {
@@ -686,7 +688,11 @@ async function sendMessage() {
 
 document.getElementById('clearChatBtn').addEventListener('click', async () => {
   if (!confirm('Clear all chat messages?')) return;
-  await fetch('/api/messages/clear', { method: 'POST' });
+  await fetch('/api/messages/clear', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: selectedCommishDate })
+  });
   loadMessages();
 });
 

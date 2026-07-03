@@ -46,8 +46,10 @@ if DATABASE_URL:
                         id SERIAL PRIMARY KEY,
                         name TEXT NOT NULL,
                         text TEXT NOT NULL,
-                        ts TIMESTAMP NOT NULL DEFAULT NOW()
+                        ts TIMESTAMP NOT NULL DEFAULT NOW(),
+                        play_date TEXT NOT NULL DEFAULT ''
                     );
+                    ALTER TABLE messages ADD COLUMN IF NOT EXISTS play_date TEXT NOT NULL DEFAULT '';
                 """)
     _init_db()
 
@@ -180,22 +182,22 @@ if DATABASE_URL:
                     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
                 """, (_ctp_key(play_date), json.dumps(ctp)))
 
-    def load_messages():
+    def load_messages(play_date):
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT name, text, ts FROM messages ORDER BY ts DESC LIMIT 50")
+                cur.execute("SELECT name, text, ts FROM messages WHERE play_date=%s ORDER BY ts DESC LIMIT 50", (play_date,))
                 return [{'name': r['name'], 'text': r['text'],
                          'ts': r['ts'].strftime('%Y-%m-%dT%H:%M:%S')} for r in cur.fetchall()]
 
-    def add_message(name, text):
+    def add_message(name, text, play_date):
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("INSERT INTO messages (name, text) VALUES (%s, %s)", (name, text))
+                cur.execute("INSERT INTO messages (name, text, play_date) VALUES (%s, %s, %s)", (name, text, play_date))
 
-    def clear_messages():
+    def clear_messages(play_date):
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("DELETE FROM messages")
+                cur.execute("DELETE FROM messages WHERE play_date=%s", (play_date,))
 
 else:
     # ---- local JSON file storage ----
@@ -301,23 +303,29 @@ else:
         _day_scores(data, play_date)['ctp'] = ctp
         _save(data)
 
-    def load_messages():
+    def load_messages(play_date):
         data = load_data()
-        return data.get('messages', [])[:50]
+        msgs = data.get('messages', {})
+        if isinstance(msgs, list):
+            return []  # old format, ignore
+        return msgs.get(play_date, [])[:50]
 
-    def add_message(name, text):
+    def add_message(name, text, play_date):
         data = load_data()
-        data.setdefault('messages', [])
-        data['messages'].insert(0, {
+        if not isinstance(data.get('messages'), dict):
+            data['messages'] = {}
+        data['messages'].setdefault(play_date, [])
+        data['messages'][play_date].insert(0, {
             'name': name, 'text': text,
             'ts': datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         })
-        data['messages'] = data['messages'][:50]
+        data['messages'][play_date] = data['messages'][play_date][:50]
         _save(data)
 
-    def clear_messages():
+    def clear_messages(play_date):
         data = load_data()
-        data['messages'] = []
+        if isinstance(data.get('messages'), dict):
+            data['messages'][play_date] = []
         _save(data)
 
     def _save(data):
@@ -359,7 +367,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.json_response({'error': 'date param required'}, 400)
             self.json_response({'teams': load_teams(play_date), 'ctp': load_ctp(play_date)})
         elif path == '/api/messages':
-            self.json_response(load_messages())
+            play_date = params.get('date', [''])[0].strip()
+            if not play_date:
+                return self.json_response({'error': 'date param required'}, 400)
+            self.json_response(load_messages(play_date))
         else:
             super().do_GET()
 
@@ -479,15 +490,19 @@ class Handler(SimpleHTTPRequestHandler):
         elif self.path == '/api/messages':
             name = (body.get('name') or '').strip()
             text = (body.get('text') or '').strip()
-            if not name or not text:
-                return self.json_response({'error': 'Name and message required.'}, 400)
+            play_date = (body.get('date') or '').strip()
+            if not name or not text or not play_date:
+                return self.json_response({'error': 'Name, message, and date required.'}, 400)
             if len(text) > 300:
                 return self.json_response({'error': 'Message too long (max 300 chars).'}, 400)
-            add_message(name, text)
+            add_message(name, text, play_date)
             self.json_response({'success': True})
 
         elif self.path == '/api/messages/clear':
-            clear_messages()
+            play_date = (body.get('date') or '').strip()
+            if not play_date:
+                return self.json_response({'error': 'date required'}, 400)
+            clear_messages(play_date)
             self.json_response({'success': True})
 
         else:
