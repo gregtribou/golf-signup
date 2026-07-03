@@ -642,7 +642,7 @@ async function loadMessages() {
 }
 
 function formatMsgTime(ts) {
-  const d = new Date(ts);
+  const d = new Date(ts + 'Z');
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
