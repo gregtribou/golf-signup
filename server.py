@@ -204,7 +204,7 @@ if DATABASE_URL:
     def react_message(play_date, ts, name, emoji, delta):
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT id, reactions FROM messages WHERE play_date=%s AND ts=%s AND name=%s", (play_date, ts, name))
+                cur.execute("SELECT id, reactions FROM messages WHERE play_date=%s AND DATE_TRUNC('second', ts)=%s::timestamp AND name=%s", (play_date, ts, name))
                 row = cur.fetchone()
                 if not row:
                     return
