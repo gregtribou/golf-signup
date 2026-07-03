@@ -92,6 +92,7 @@ window.selectScoreDay = function(iso) {
   selectedScoreDate = iso;
   renderScoreDayToggle(currentData?.gameDates || []);
   loadScores();
+  loadMessages();
 };
 
 window.selectCommishDay = function(iso) {
