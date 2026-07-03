@@ -91,7 +91,7 @@ if DATABASE_URL:
     def load_data():
         with _conn() as c:
             with c.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute("SELECT name, days, either, filler FROM signups ORDER BY LOWER(name)")
+                cur.execute("SELECT name, days, either, filler FROM signups ORDER BY id")
                 signups = [dict(r) for r in cur.fetchall()]
         return {'playDates': _get_play_dates(), 'gameDates': _get_game_dates(), 'signups': signups}
 
@@ -263,7 +263,6 @@ else:
         idx = next((i for i, s in enumerate(data['signups']) if s['name'].lower() == name.lower()), -1)
         if idx >= 0: data['signups'][idx] = entry
         else:        data['signups'].append(entry)
-        data['signups'].sort(key=lambda s: s['name'].lower())
         _save(data)
 
     def delete_signup(name):
