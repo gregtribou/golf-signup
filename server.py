@@ -74,7 +74,7 @@ if DATABASE_URL:
             with c.cursor() as cur:
                 cur.execute("SELECT value FROM settings WHERE key = 'gameDates'")
                 row = cur.fetchone()
-                return row[0] if row else _get_play_dates()
+                return row[0] if row else []
 
     def _set_game_dates(dates):
         with _conn() as c:
