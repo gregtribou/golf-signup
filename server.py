@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import json
 import os
+import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from datetime import date, timedelta, datetime
 from urllib.parse import unquote, urlparse, parse_qs
+
+def _log(msg):
+    print(f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC] {msg}", flush=True)
 
 PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'public')
 DATA_FILE  = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'signups.json')
@@ -109,6 +113,7 @@ if DATABASE_URL:
                 cur.execute("DELETE FROM signups WHERE LOWER(name)=LOWER(%s)", (name,))
 
     def reset_signups():
+        _log("RESET_SIGNUPS: All signups deleted")
         with _conn() as c:
             with c.cursor() as cur:
                 cur.execute("DELETE FROM signups")
@@ -117,7 +122,10 @@ if DATABASE_URL:
         current = _get_play_dates()
         _set_play_dates(dates)
         if sorted(dates) != sorted(current):
+            _log(f"SET_DATES: Dates changed {','.join(sorted(current))} -> {','.join(sorted(dates))} — signups cleared")
             reset_signups()
+        else:
+            _log(f"SET_DATES: Dates unchanged ({','.join(sorted(dates))}) — signups preserved")
 
     def _team_prefix(d):
         return f"{d}_"
@@ -272,14 +280,19 @@ else:
         _save(data)
 
     def reset_signups():
+        _log("RESET_SIGNUPS: All signups deleted")
         data = load_data()
         data['signups'] = []
         _save(data)
 
     def set_dates(dates):
         data = load_data()
-        if sorted(dates) != sorted(data.get('playDates', [])):
+        current = data.get('playDates', [])
+        if sorted(dates) != sorted(current):
+            _log(f"SET_DATES: Dates changed {','.join(sorted(current))} -> {','.join(sorted(dates))} — signups cleared")
             data['signups'] = []
+        else:
+            _log(f"SET_DATES: Dates unchanged ({','.join(sorted(dates))}) — signups preserved")
         data['playDates'] = dates
         _save(data)
 
