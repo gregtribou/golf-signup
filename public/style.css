@@ -390,6 +390,7 @@ main {
 }
 
 .remove-btn:hover { color: var(--red); }
+.remove-btn-confirm { color: var(--red) !important; font-weight: bold; }
 
 /* Date setter */
 .date-setter {
