@@ -182,7 +182,7 @@ function renderDayRosters(playDates, signups) {
       ? players.map(p => `
           <li>
             <span>${escHtml(p.name)}</span>
-            <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)}, this)">✕</button>
+            <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
           </li>`).join('')
       : '<li class="empty-state">No one yet — be the first!</li>';
     return `
@@ -209,7 +209,7 @@ function renderList(listId, players) {
   ul.innerHTML = players.map(p => `
     <li>
       <span>${escHtml(p.name)}</span>
-      <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)}, this)">✕</button>
+      <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
     </li>`).join('');
 }
 
@@ -278,21 +278,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   }
 });
 
-const _removePending = {};
-async function removePlayer(name, btn) {
-  if (_removePending[name]) {
-    clearTimeout(_removePending[name]);
-    delete _removePending[name];
-    await fetch(`/api/signup/${encodeURIComponent(name)}`, { method: 'DELETE' });
-    await loadSignups();
-  } else {
-    btn.classList.add('remove-btn-confirm');
-    btn.textContent = '?';
-    _removePending[name] = setTimeout(() => {
-      delete _removePending[name];
-      if (btn.isConnected) { btn.classList.remove('remove-btn-confirm'); btn.textContent = '✕'; }
-    }, 2000);
-  }
+async function removePlayer(name) {
+  await fetch(`/api/signup/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  await loadSignups();
 }
 
 function showFeedback(msg, type, elId = 'feedback') {
