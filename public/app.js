@@ -352,7 +352,11 @@ document.getElementById('setDatesBtn').addEventListener('click', async () => {
   const inputs = document.querySelectorAll('#dateInputList .date-input');
   const dates = [...inputs].map(i => i.value).filter(Boolean);
   if (!dates.length) { showFeedback('Enter at least one date.', 'error', 'dateFeedback'); return; }
-  if (!confirm('Updating dates will clear all current signups. Continue?')) return;
+  const currentDates = (currentData?.playDates || []).slice().sort().join(',');
+  const newDates = dates.slice().sort().join(',');
+  if (currentDates !== newDates) {
+    if (!confirm('WARNING: Changing play dates will delete ALL current signups. Are you sure?')) return;
+  }
   const res = await fetch('/api/setdates', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

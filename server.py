@@ -114,8 +114,10 @@ if DATABASE_URL:
                 cur.execute("DELETE FROM signups")
 
     def set_dates(dates):
+        current = _get_play_dates()
         _set_play_dates(dates)
-        reset_signups()
+        if sorted(dates) != sorted(current):
+            reset_signups()
 
     def _team_prefix(d):
         return f"{d}_"
@@ -276,8 +278,9 @@ else:
 
     def set_dates(dates):
         data = load_data()
+        if sorted(dates) != sorted(data.get('playDates', [])):
+            data['signups'] = []
         data['playDates'] = dates
-        data['signups'] = []
         _save(data)
 
     def set_game_dates(dates):
