@@ -117,7 +117,7 @@ async function loadSignups() {
   const res = await fetch('/api/signups');
   currentData = await res.json();
   // Init selected dates from gameDates if not set
-  const gameDates = currentData.gameDates || currentData.playDates || [];
+  const gameDates = (currentData.gameDates?.length ? currentData.gameDates : currentData.playDates) || [];
   if (gameDates.length > 0) {
     if (!selectedScoreDate || !gameDates.includes(selectedScoreDate)) {
       selectedScoreDate = gameDates[0];
@@ -364,7 +364,11 @@ document.getElementById('setDatesBtn').addEventListener('click', async () => {
   });
   const result = await res.json();
   if (result.success) {
-    showFeedback('✓ Dates updated!', 'success', 'dateFeedback');
+    if (currentDates === newDates) {
+      showFeedback('Dates unchanged — signups preserved. Use "Reset Signups" to clear for a new week.', 'success', 'dateFeedback');
+    } else {
+      showFeedback('✓ Dates updated! Signups cleared for new week.', 'success', 'dateFeedback');
+    }
     await loadSignups();
     populateDateInputs(currentData.playDates);
     selectedCommishDate = currentData.playDates[0];
@@ -627,12 +631,10 @@ function renderTeams(teams) {
 
 async function adjustScore(id, currentScore, currentHole, scoreDelta, holeDelta) {
   if (!selectedScoreDate) return;
-  const newScore = currentScore + scoreDelta;
-  const newHole = Math.max(0, Math.min(18, currentHole + holeDelta));
   await fetch('/api/scores/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, score: newScore, hole: newHole, date: selectedScoreDate })
+    body: JSON.stringify({ id, score_delta: scoreDelta, hole_delta: holeDelta, date: selectedScoreDate })
   });
   loadScores();
 }
@@ -758,7 +760,7 @@ document.getElementById('clearChatBtn').addEventListener('click', async () => {
   await fetch('/api/messages/clear', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: selectedCommishDate })
+    body: JSON.stringify({ date: selectedScoreDate })
   });
   loadMessages();
 });

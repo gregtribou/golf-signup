@@ -164,11 +164,16 @@ if DATABASE_URL:
                     """, (f"{prefix}{t['id']}", t['name'], t['players'],
                           old.get('score', 0), old.get('hole', 0), i))
 
-    def update_team_score(team_id, score, hole, play_date):
+    def update_team_score(team_id, score_delta, hole_delta, play_date):
         full_id = f"{_team_prefix(play_date)}{team_id}"
         with _conn() as c:
             with c.cursor() as cur:
-                cur.execute("UPDATE teams SET score=%s, hole=%s WHERE id=%s", (score, hole, full_id))
+                cur.execute("""
+                    UPDATE teams
+                    SET score = score + %s,
+                        hole  = GREATEST(0, LEAST(18, hole + %s))
+                    WHERE id = %s
+                """, (score_delta, hole_delta, full_id))
 
     def reset_team_scores(play_date):
         with _conn() as c:
@@ -315,11 +320,13 @@ else:
         } for t in teams]
         _save(data)
 
-    def update_team_score(team_id, score, hole, play_date):
+    def update_team_score(team_id, score_delta, hole_delta, play_date):
         data = load_data()
         for t in _day_scores(data, play_date)['teams']:
             if t['id'] == team_id:
-                t['score'] = score; t['hole'] = hole; break
+                t['score'] = t['score'] + score_delta
+                t['hole'] = max(0, min(18, t['hole'] + hole_delta))
+                break
         _save(data)
 
     def reset_team_scores(play_date):
@@ -482,13 +489,13 @@ class Handler(SimpleHTTPRequestHandler):
             play_date = (body.get('date') or '').strip()
             team_id = (body.get('id') or '').strip()
             try:
-                score = int(body.get('score', 0))
-                hole  = max(0, min(18, int(body.get('hole', 0))))
+                score_delta = int(body.get('score_delta', 0))
+                hole_delta  = int(body.get('hole_delta', 0))
             except (ValueError, TypeError):
-                return self.json_response({'error': 'Invalid score or hole.'}, 400)
+                return self.json_response({'error': 'Invalid score_delta or hole_delta.'}, 400)
             if not team_id or not play_date:
                 return self.json_response({'error': 'id and date required.'}, 400)
-            update_team_score(team_id, score, hole, play_date)
+            update_team_score(team_id, score_delta, hole_delta, play_date)
             self.json_response({'success': True})
 
         elif self.path == '/api/scores/reset':
