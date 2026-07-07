@@ -182,7 +182,7 @@ function renderDayRosters(playDates, signups) {
       ? players.map(p => `
           <li>
             <span>${escHtml(p.name)}</span>
-            <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
+            <button class="remove-btn" title="Remove" onclick="removePlayer(${escHtml(JSON.stringify(p.name))})">✕</button>
           </li>`).join('')
       : '<li class="empty-state">No one yet — be the first!</li>';
     return `
@@ -209,7 +209,7 @@ function renderList(listId, players) {
   ul.innerHTML = players.map(p => `
     <li>
       <span>${escHtml(p.name)}</span>
-      <button class="remove-btn" title="Remove" onclick="removePlayer(${JSON.stringify(p.name)})">✕</button>
+      <button class="remove-btn" title="Remove" onclick="removePlayer(${escHtml(JSON.stringify(p.name))})">✕</button>
     </li>`).join('');
 }
 
@@ -580,7 +580,7 @@ function renderCtp(ctp) {
       <span class="ctp-rank">${i === 0 ? '🏆' : `${i + 1}.`}</span>
       <span class="ctp-name">${escHtml(e.name)}</span>
       <span class="ctp-dist">${formatFtIn(e.distance)}</span>
-      <button class="remove-btn" onclick="removeCtp(${JSON.stringify(e.name)})">✕</button>
+      <button class="remove-btn" onclick="removeCtp(${escHtml(JSON.stringify(e.name))})">✕</button>
     </li>`).join('');
 }
 
