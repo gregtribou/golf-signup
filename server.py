@@ -99,18 +99,55 @@ if DATABASE_URL:
         return {'playDates': _get_play_dates(), 'gameDates': _get_game_dates(), 'signups': signups}
 
     def save_signup(name, days, either, filler):
+        # Merge additively: a new signup adds days/flags, never clears existing
+        # ones. Removing a day/flag is done via delete_signup with a kind.
         with _conn() as c:
-            with c.cursor() as cur:
-                cur.execute("""
-                    INSERT INTO signups (name, days, either, filler) VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (name) DO UPDATE
-                    SET days=EXCLUDED.days, either=EXCLUDED.either, filler=EXCLUDED.filler
-                """, (name, json.dumps(days), either, filler))
+            with c.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT name, days, either, filler FROM signups WHERE LOWER(name)=LOWER(%s)", (name,))
+                row = cur.fetchone()
+                if row:
+                    merged = dict(row['days'] or {})
+                    for k, v in (days or {}).items():
+                        merged[k] = bool(merged.get(k)) or bool(v)
+                    cur.execute(
+                        "UPDATE signups SET days=%s, either=%s, filler=%s WHERE name=%s",
+                        (json.dumps(merged), bool(row['either']) or either,
+                         bool(row['filler']) or filler, row['name'])
+                    )
+                else:
+                    cur.execute(
+                        "INSERT INTO signups (name, days, either, filler) VALUES (%s, %s, %s, %s)",
+                        (name, json.dumps(days), either, filler)
+                    )
 
-    def delete_signup(name):
+    def delete_signup(name, kind=None):
+        # kind=None removes the whole record; 'either'/'filler' clears that flag;
+        # 'day:<iso>' drops just that day. If nothing is left, the record is removed.
+        if not kind:
+            with _conn() as c:
+                with c.cursor() as cur:
+                    cur.execute("DELETE FROM signups WHERE LOWER(name)=LOWER(%s)", (name,))
+            return
         with _conn() as c:
-            with c.cursor() as cur:
-                cur.execute("DELETE FROM signups WHERE LOWER(name)=LOWER(%s)", (name,))
+            with c.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("SELECT name, days, either, filler FROM signups WHERE LOWER(name)=LOWER(%s)", (name,))
+                row = cur.fetchone()
+                if not row:
+                    return
+                days = dict(row['days'] or {})
+                either = bool(row['either'])
+                filler = bool(row['filler'])
+                if kind == 'either':
+                    either = False
+                elif kind == 'filler':
+                    filler = False
+                elif kind.startswith('day:'):
+                    days[kind[4:]] = False
+                if not any(days.values()) and not either and not filler:
+                    cur.execute("DELETE FROM signups WHERE name=%s", (row['name'],))
+                else:
+                    cur.execute("UPDATE signups SET days=%s, either=%s, filler=%s WHERE name=%s",
+                                (json.dumps(days), either, filler, row['name']))
 
     def reset_signups():
         _log("RESET_SIGNUPS: All signups deleted")
@@ -272,16 +309,41 @@ else:
         return data['scores'][play_date]
 
     def save_signup(name, days, either, filler):
+        # Merge additively: a new signup adds days/flags, never clears existing
+        # ones. Removing a day/flag is done via delete_signup with a kind.
         data = load_data()
-        entry = {'name': name, 'days': days, 'either': either, 'filler': filler}
         idx = next((i for i, s in enumerate(data['signups']) if s['name'].lower() == name.lower()), -1)
-        if idx >= 0: data['signups'][idx] = entry
-        else:        data['signups'].append(entry)
+        if idx >= 0:
+            existing = data['signups'][idx]
+            merged = dict(existing.get('days') or {})
+            for k, v in (days or {}).items():
+                merged[k] = bool(merged.get(k)) or bool(v)
+            existing['days'] = merged
+            existing['either'] = bool(existing.get('either')) or either
+            existing['filler'] = bool(existing.get('filler')) or filler
+        else:
+            data['signups'].append({'name': name, 'days': days, 'either': either, 'filler': filler})
         _save(data)
 
-    def delete_signup(name):
+    def delete_signup(name, kind=None):
+        # kind=None removes the whole record; 'either'/'filler' clears that flag;
+        # 'day:<iso>' drops just that day. If nothing is left, the record is removed.
         data = load_data()
-        data['signups'] = [s for s in data['signups'] if s['name'].lower() != name.lower()]
+        if not kind:
+            data['signups'] = [s for s in data['signups'] if s['name'].lower() != name.lower()]
+            _save(data)
+            return
+        for s in data['signups']:
+            if s['name'].lower() == name.lower():
+                if kind == 'either':
+                    s['either'] = False
+                elif kind == 'filler':
+                    s['filler'] = False
+                elif kind.startswith('day:'):
+                    s.setdefault('days', {})[kind[4:]] = False
+                break
+        data['signups'] = [s for s in data['signups']
+                           if any((s.get('days') or {}).values()) or s.get('either') or s.get('filler')]
         _save(data)
 
     def reset_signups():
@@ -585,8 +647,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_DELETE(self):
-        if self.path.startswith('/api/signup/'):
-            delete_signup(unquote(self.path[len('/api/signup/'):]))
+        parsed = urlparse(self.path)
+        if parsed.path.startswith('/api/signup/'):
+            name = unquote(parsed.path[len('/api/signup/'):])
+            kind = parse_qs(parsed.query).get('kind', [None])[0]
+            delete_signup(name, kind)
             self.json_response({'success': True})
         else:
             self.send_error(404)

@@ -155,8 +155,8 @@ function render(data) {
 
   const eitherPlayers = signups.filter(s => s.either);
   const fillerPlayers = signups.filter(s => s.filler);
-  renderList('eitherList', eitherPlayers);
-  renderList('fillerList', fillerPlayers);
+  renderList('eitherList', eitherPlayers, 'either');
+  renderList('fillerList', fillerPlayers, 'filler');
   document.getElementById('eitherCount').textContent = eitherPlayers.length;
   document.getElementById('fillerCount').textContent = fillerPlayers.length;
 }
@@ -182,7 +182,7 @@ function renderDayRosters(playDates, signups) {
       ? players.map(p => `
           <li>
             <span>${escHtml(p.name)}</span>
-            <button class="remove-btn" title="Remove" onclick="removePlayer(${escHtml(JSON.stringify(p.name))})">✕</button>
+            <button class="remove-btn" title="Remove from this day" onclick="removeSignup(${escHtml(JSON.stringify(p.name))}, 'day:${iso}')">✕</button>
           </li>`).join('')
       : '<li class="empty-state">No one yet — be the first!</li>';
     return `
@@ -200,7 +200,7 @@ function renderDayRosters(playDates, signups) {
   }).join('');
 }
 
-function renderList(listId, players) {
+function renderList(listId, players, kind) {
   const ul = document.getElementById(listId);
   if (players.length === 0) {
     ul.innerHTML = '<li class="empty-state">No one yet</li>';
@@ -209,7 +209,7 @@ function renderList(listId, players) {
   ul.innerHTML = players.map(p => `
     <li>
       <span>${escHtml(p.name)}</span>
-      <button class="remove-btn" title="Remove" onclick="removePlayer(${escHtml(JSON.stringify(p.name))})">✕</button>
+      <button class="remove-btn" title="Remove" onclick="removeSignup(${escHtml(JSON.stringify(p.name))}, '${kind}')">✕</button>
     </li>`).join('');
 }
 
@@ -217,19 +217,6 @@ function escHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// Pre-fill checkboxes when a known name is entered
-document.getElementById('nameInput').addEventListener('change', () => {
-  const name = document.getElementById('nameInput').value.trim().toLowerCase();
-  const existing = (currentData?.signups || []).find(s => s.name.toLowerCase() === name);
-  if (!existing) return;
-  const playDates = currentData?.playDates || [];
-  playDates.forEach(iso => {
-    const cb = document.getElementById(`check-${iso}`);
-    if (cb) cb.checked = !!existing.days?.[iso];
-  });
-  document.getElementById('eitherCheck').checked = !!existing.either;
-  document.getElementById('fillerCheck').checked = !!existing.filler;
-});
 
 // --- Signup submit ---
 
@@ -278,8 +265,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   }
 });
 
-async function removePlayer(name) {
-  await fetch(`/api/signup/${encodeURIComponent(name)}`, { method: 'DELETE' });
+async function removeSignup(name, kind) {
+  const q = kind ? `?kind=${encodeURIComponent(kind)}` : '';
+  await fetch(`/api/signup/${encodeURIComponent(name)}${q}`, { method: 'DELETE' });
   await loadSignups();
 }
 
